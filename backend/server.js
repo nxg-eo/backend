@@ -172,10 +172,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
       }
     });
 
-    console.log('Checkout session created successfully:', session.id);
+    console.log(`[create-checkout-session] Checkout session created successfully: ${session.id}. Status: ${session.payment_status}`);
 
     res.json({
-      sessionId: session.id
+      sessionId: session.id,
+      paymentStatus: session.payment_status // Also send payment status for client-side debugging
     });
 
   } catch (error) {
