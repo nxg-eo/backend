@@ -28,7 +28,7 @@ function normalizeMemberType(memberType) {
 function getMemberTypeDisplay(normalizedType) {
   const displayNames = {
     'eo dubai member': 'EO Dubai Member',
-    'eo dubai spouse': 'EO Dubai Spouse/Partner',
+    'eo dubai spouse': 'EO Dubai Spouse',
     'eo dubai accelerator': 'EO Dubai Accelerator',
     'guest': 'Guest'
   };
@@ -57,6 +57,8 @@ function verifyUserFromCSV(email, csvPath) {
           const normalizedType = normalizeMemberType(csvMemberType);
           const displayType = getMemberTypeDisplay(normalizedType);
           
+          console.log(`DEBUG: Email: ${csvEmail}, CSV Member Type: '${csvMemberType}', Normalized Type: '${normalizedType}', Display Type: '${displayType}'`);
+
           resolve({
             found: true,
             email: csvEmail,
@@ -111,7 +113,7 @@ router.all('/verify-user', async (req, res) => {
     // Define pricing and discount information
     const discountMessages = {
       'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted by USD 1,500!',
-      'EO Dubai Spouse/Partner': 'As an EO Dubai Spouse/Partner, your entry fee is discounted by USD 250!',
+      'EO Dubai Spouse': 'As an EO Dubai Spouse your entry fee is discounted by USD 250!',
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted by USD 250!',
       'Guest': 'Standard pricing applies (no discount)'
     };
@@ -122,7 +124,7 @@ router.all('/verify-user', async (req, res) => {
         vip: 1000,
         currency: 'USD'
       },
-      'EO Dubai Spouse/Partner': { 
+      'EO Dubai Spouse': { 
         regular: 1250, 
         vip: 2250,
         currency: 'USD'
