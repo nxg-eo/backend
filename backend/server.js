@@ -143,7 +143,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     console.log('Creating checkout session with amount:', amountInCents, 'currency:', currency);
 
     // Updated success and cancel URLs for production
-    const successUrl = `${FRONTEND_URL}/thanks.php?sid={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${FRONTEND_URL}/thanks.php?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${FRONTEND_URL}/registration.php?cancelled=true`; 
 
     const session = await stripe.checkout.sessions.create({
