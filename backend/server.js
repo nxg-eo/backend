@@ -13,13 +13,52 @@ const fromEmail = process.env.FROM_EMAIL.match(/<([^>]+)>/)[1];
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Environment-based configuration
+const isProduction = process.env.NODE_ENV === 'production';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8000';
+
+// CORS configuration for FTP hosted frontend
+const corsOptions = {
+  origin: [
+    'http://localhost:8000', // For local development
+    'https://eodubai.com',   // Your FTP domain
+    'http://eodubai.com',    // Your FTP domain (if HTTP)
+    'https://www.eodubai.com', // With www
+    'http://www.eodubai.com',  // With www (if HTTP)
+    FRONTEND_URL
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors()); // Enable CORS for all routes
+app.use(cors(corsOptions)); // Updated CORS configuration
 
 // Use routes
 app.use('/api', verifyUserRouter);
+
+// Helper function to ensure CSV files exist
+function ensureCSVFiles() {
+  const presentFile = path.join(__dirname, 'attendance_present.csv');
+  const absentFile = path.join(__dirname, 'attendance_absent.csv');
+  
+  const csvHeader = 'sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,dateRegistered,penaltyAmount,penaltyStatus\n';
+  
+  if (!fs.existsSync(presentFile)) {
+    fs.writeFileSync(presentFile, csvHeader);
+  }
+  
+  if (!fs.existsSync(absentFile)) {
+    fs.writeFileSync(absentFile, csvHeader);
+  }
+}
+
+// Initialize CSV files
+ensureCSVFiles();
 
 // Stripe Payment Endpoint for Payment Intent
 app.post('/api/create-payment-intent', async (req, res) => {
@@ -103,6 +142,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     console.log('Creating checkout session with amount:', amountInCents, 'currency:', currency);
 
+    // Updated success and cancel URLs for production
+    const successUrl = `${FRONTEND_URL}/thanks.php?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${FRONTEND_URL}/registration.php?cancelled=true`;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -117,8 +160,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: 'http://localhost:8000/thanks.php?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'http://localhost:8000/registration.php?cancelled=true',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       customer_email: email,
       metadata: {
         source: 'SYNAPSE Registration',
@@ -131,53 +174,53 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     console.log('Checkout session created successfully:', session.id);
 
-// Generate QR Code URL
-const qrCodeData = JSON.stringify({
-  sessionId: session.id,
-  name: name,
-  email: email,
-  plan: plan,
-});
-const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=200x200`;
+    // Generate QR Code URL
+    const qrCodeData = JSON.stringify({
+      sessionId: session.id,
+      name: name,
+      email: email,
+      plan: plan,
+    });
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=200x200`;
 
-// Send email using Resend
-try {
-  const result = await resend.emails.send({
-    from: process.env.FROM_EMAIL,
-    to: [email],
-    subject: 'Your SYNAPSE Event QR Code',
-    html: `
-      <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #2c3e50; text-align: center;">Your SYNAPSE Event QR Code</h1>
-            <p>Dear ${name || 'Guest'},</p>
-            <p>Thank you for registering for the SYNAPSE event! Your <strong>${plan || 'regular'}</strong> pass is confirmed.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <img src="${qrCodeUrl}" alt="QR Code" style="border: 1px solid #ddd; padding: 10px;" />
-            </div>
-            <p>Please present this QR code at the event entrance.</p>
-            <p>Best regards,<br>The SYNAPSE Team</p>
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #666;">Session ID: ${session.id}</p>
-          </div>
-        </body>
-      </html>
-    `,
-  });
+    // Send email using Resend
+    try {
+      const result = await resend.emails.send({
+        from: process.env.FROM_EMAIL,
+        to: [email],
+        subject: 'Your SYNAPSE Event QR Code',
+        html: `
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #2c3e50; text-align: center;">Your SYNAPSE Event QR Code</h1>
+                <p>Dear ${name || 'Guest'},</p>
+                <p>Thank you for registering for the SYNAPSE event! Your <strong>${plan || 'regular'}</strong> pass is confirmed.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <img src="${qrCodeUrl}" alt="QR Code" style="border: 1px solid #ddd; padding: 10px;" />
+                </div>
+                <p>Please present this QR code at the event entrance.</p>
+                <p>Best regards,<br>The SYNAPSE Team</p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                <p style="font-size: 12px; color: #666;">Session ID: ${session.id}</p>
+              </div>
+            </body>
+          </html>
+        `,
+      });
 
-  if (result.error) {
-    console.error('Email sending failed:', result.error);
-  } else {
-    console.log('QR code email sent successfully:', result);
-  }
-} catch (emailError) {
-  console.error('Error sending QR code email:', emailError);
-}
+      if (result.error) {
+        console.error('Email sending failed:', result.error);
+      } else {
+        console.log('QR code email sent successfully:', result);
+      }
+    } catch (emailError) {
+      console.error('Error sending QR code email:', emailError);
+    }
 
-res.json({
-  sessionId: session.id
-});
+    res.json({
+      sessionId: session.id
+    });
 
   } catch (error) {
     console.error('Error creating checkout session:', error);
@@ -222,62 +265,72 @@ app.post('/api/record-attendance', async (req, res) => {
     };
 
     // Read the appropriate CSV file based on attendance
-    const filePath = attended ? 'attendance_present.csv' : 'attendance_absent.csv';
-    const csvContent = require('fs').readFileSync(filePath, 'utf8');
-    const lines = csvContent.split('\n');
-    const header = lines[0];
-    const dataLines = lines.slice(1);
+    const filePath = path.join(__dirname, attended ? 'attendance_present.csv' : 'attendance_absent.csv');
+    
+    try {
+      const csvContent = fs.readFileSync(filePath, 'utf8');
+      const lines = csvContent.split('\n');
+      const header = lines[0];
+      const dataLines = lines.slice(1).filter(line => line.trim() !== '');
 
-    // Add the new entry
-    const newLine = `${userData.sessionId},${userData.name},${userData.email},${userData.phone},${userData.chapter},${userData.plan},${userData.paymentAmount},${userData.paymentCurrency},${userData.transactionId},${userData.dateRegistered}` + (attended ? '' : ',1250,Pending');
-    dataLines.push(newLine);
+      // Add the new entry
+      const newLine = `${userData.sessionId},${userData.name},${userData.email},${userData.phone},${userData.chapter},${userData.plan},${userData.paymentAmount},${userData.paymentCurrency},${userData.transactionId},${userData.dateRegistered}` + (attended ? ',,' : ',1250,Pending');
+      dataLines.push(newLine);
 
-    // Write back to the CSV file
-    require('fs').writeFileSync(filePath, header + '\n' + dataLines.join('\n'), 'utf8');
+      // Write back to the CSV file
+      fs.writeFileSync(filePath, header + '\n' + dataLines.join('\n') + '\n');
 
-    if (!attended) {
-      // Apply penalty for absent users
-      try {
-        const penaltyIntent = await stripe.paymentIntents.create({
-          amount: 125000, // 1250 USD in cents
-          currency: 'usd',
-          customer: session.customer || undefined,
-          payment_method_types: ['card'],
-          metadata: {
-            source: 'SYNAPSE Penalty for No-Show',
-            originalSessionId: sessionId
-          }
-        });
+      if (!attended) {
+        // Apply penalty for absent users
+        try {
+          const penaltyIntent = await stripe.paymentIntents.create({
+            amount: 125000, // 1250 USD in cents
+            currency: 'usd',
+            customer: session.customer || undefined,
+            payment_method_types: ['card'],
+            metadata: {
+              source: 'SYNAPSE Penalty for No-Show',
+              originalSessionId: sessionId
+            }
+          });
 
-        console.log('Penalty payment intent created successfully:', penaltyIntent.id);
+          console.log('Penalty payment intent created successfully:', penaltyIntent.id);
 
-        // Update penalty status in absent CSV
-        const absentCsv = require('fs').readFileSync('attendance_absent.csv', 'utf8');
-        const absentLines = absentCsv.split('\n');
-        const updatedLines = absentLines.map(line => {
-          if (line.startsWith(sessionId + ',')) {
-            const parts = line.split(',');
-            parts[parts.length - 1] = 'Processed';
-            return parts.join(',');
-          }
-          return line;
-        });
-        require('fs').writeFileSync('attendance_absent.csv', updatedLines.join('\n'), 'utf8');
+          // Update penalty status in absent CSV
+          const absentCsvPath = path.join(__dirname, 'attendance_absent.csv');
+          const absentCsv = fs.readFileSync(absentCsvPath, 'utf8');
+          const absentLines = absentCsv.split('\n');
+          const updatedLines = absentLines.map(line => {
+            if (line.startsWith(sessionId + ',')) {
+              const parts = line.split(',');
+              parts[parts.length - 1] = 'Processed';
+              return parts.join(',');
+            }
+            return line;
+          });
+          fs.writeFileSync(absentCsvPath, updatedLines.join('\n'));
 
-        res.json({
-          success: true,
-          penaltyIntentId: penaltyIntent.id,
-          clientSecret: penaltyIntent.client_secret
-        });
-      } catch (error) {
-        console.error('Error creating penalty payment intent:', error);
-        res.status(500).json({ 
-          error: 'Failed to create penalty payment intent',
-          details: error.message 
-        });
+          res.json({
+            success: true,
+            penaltyIntentId: penaltyIntent.id,
+            clientSecret: penaltyIntent.client_secret
+          });
+        } catch (error) {
+          console.error('Error creating penalty payment intent:', error);
+          res.status(500).json({ 
+            error: 'Failed to create penalty payment intent',
+            details: error.message 
+          });
+        }
+      } else {
+        res.json({ success: true });
       }
-    } else {
-      res.json({ success: true });
+    } catch (fileError) {
+      console.error('Error reading/writing CSV file:', fileError);
+      res.status(500).json({ 
+        error: 'Failed to process attendance record',
+        details: fileError.message 
+      });
     }
   } catch (error) {
     console.error('Error recording attendance:', error);
@@ -290,10 +343,15 @@ app.post('/api/record-attendance', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    frontendUrl: FRONTEND_URL
+  });
 });
 
-// Add this test endpoint to your server
+// Email test endpoint
 app.get('/api/email-test', async (req, res) => {
   try {
     console.log('=== EMAIL TEST ===');
@@ -313,6 +371,7 @@ app.get('/api/email-test', async (req, res) => {
         <h1>Test Email Success!</h1>
         <p>If you receive this, your email configuration is working.</p>
         <p>From: ${process.env.FROM_EMAIL}</p>
+        <p>Environment: ${process.env.NODE_ENV || 'development'}</p>
         <p>Time: ${new Date().toISOString()}</p>
       `,
     });
@@ -342,6 +401,7 @@ app.get('/api/email-test', async (req, res) => {
   }
 });
 
+// Send confirmation email endpoint
 app.post('/api/send-confirmation-email', async (req, res) => {
   try {
     const { sessionId } = req.body;
@@ -403,9 +463,29 @@ app.post('/api/send-confirmation-email', async (req, res) => {
   }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: isProduction ? 'Something went wrong' : err.message
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    message: `Route ${req.method} ${req.url} not found`
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Frontend URL: ${FRONTEND_URL}`);
+  console.log(`CORS enabled for: ${corsOptions.origin}`);
 });
 
 module.exports = app;
