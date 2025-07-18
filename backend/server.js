@@ -174,50 +174,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     console.log('Checkout session created successfully:', session.id);
 
-    // Generate QR Code URL
-    const qrCodeData = JSON.stringify({
-      sessionId: session.id,
-      name: name,
-      email: email,
-      plan: plan,
-    });
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=200x200`;
-
-    // Send email using Resend
-    try {
-      const result = await resend.emails.send({
-        from: process.env.FROM_EMAIL,
-        to: [email],
-        subject: 'Your SYNAPSE Event QR Code',
-        html: `
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h1 style="color: #2c3e50; text-align: center;">Your SYNAPSE Event QR Code</h1>
-                <p>Dear ${name || 'Guest'},</p>
-                <p>Thank you for registering for the SYNAPSE event! Your <strong>${plan || 'regular'}</strong> pass is confirmed.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <img src="${qrCodeUrl}" alt="QR Code" style="border: 1px solid #ddd; padding: 10px;" />
-                </div>
-                <p>Please present this QR code at the event entrance.</p>
-                <p>Best regards,<br>The SYNAPSE Team</p>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-                <p style="font-size: 12px; color: #666;">Session ID: ${session.id}</p>
-              </div>
-            </body>
-          </html>
-        `,
-      });
-
-      if (result.error) {
-        console.error('Email sending failed:', result.error);
-      } else {
-        console.log('QR code email sent successfully:', result);
-      }
-    } catch (emailError) {
-      console.error('Error sending QR code email:', emailError);
-    }
-
     res.json({
       sessionId: session.id
     });
@@ -401,6 +357,7 @@ app.get('/api/email-test', async (req, res) => {
   }
 });
 
+
 // Send confirmation email endpoint
 app.post('/api/send-confirmation-email', async (req, res) => {
   try {
@@ -410,9 +367,12 @@ app.post('/api/send-confirmation-email', async (req, res) => {
       return res.status(400).json({ error: 'Session ID is required' });
     }
 
+    console.log(`[send-confirmation-email] Received request for sessionId: ${sessionId}`);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    console.log(`[send-confirmation-email] Retrieved session status: ${session.payment_status}, ID: ${session.id}, Customer Email: ${session.customer_email}`);
 
     if (session.payment_status === 'paid') {
+      console.log(`[send-confirmation-email] Payment status is 'paid'. Proceeding to send email.`);
       const qrCodeData = JSON.stringify({
         sessionId: session.id,
         name: session.metadata.name,
@@ -449,16 +409,18 @@ app.post('/api/send-confirmation-email', async (req, res) => {
       });
 
       if (result.error) {
-        console.error('Email sending failed:', result.error);
+        console.error('[send-confirmation-email] Email sending failed:', result.error);
         return res.status(500).json({ error: 'Failed to send email' });
       }
 
+      console.log('[send-confirmation-email] QR code email sent successfully.');
       res.json({ success: true, message: 'Email sent successfully' });
     } else {
+      console.warn(`[send-confirmation-email] Payment not successful for session ${sessionId}. Payment status: ${session.payment_status}. Email not sent.`);
       res.status(400).json({ error: 'Payment not successful' });
     }
   } catch (error) {
-    console.error('Error sending confirmation email:', error);
+    console.error('[send-confirmation-email] Error sending confirmation email:', error);
     res.status(500).json({ error: 'Failed to send confirmation email' });
   }
 });
