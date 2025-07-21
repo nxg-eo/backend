@@ -2,11 +2,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const verifyUserRouter = require('./routes/verify-user');
-require('dotenv').config();
+const path = require('path'); // Ensure path is required at the very top
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { Resend } = require('resend');
 const fs = require('fs');
-const path = require('path');
 const resend = new Resend(process.env.RESEND_API_KEY);
 const fromEmail = process.env.FROM_EMAIL.match(/<([^>]+)>/)[1];
 

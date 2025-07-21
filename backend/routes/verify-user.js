@@ -152,8 +152,8 @@ router.all('/verify-user', async (req, res) => {
       verification_timestamp: new Date().toISOString()
     };
     
-    // Log the verification for audit purposes
-    console.log(`User verification: ${userInfo.email} - ${userInfo.member_type} - ${userInfo.found ? 'Found' : 'Not Found'}`);
+    // Log the full response being sent for audit purposes
+    console.log(`User verification response for ${userInfo.email}:`, response);
     
     return res.json(response);
     
