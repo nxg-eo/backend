@@ -51,6 +51,8 @@ function verifyUserFromCSV(email, csvPath) {
         // Handle different possible column names
         const csvEmail = (data['Email'] || data['email'] || data['EMAIL'] || '').toLowerCase().trim();
         const csvMemberType = data['Member Type'] || data['member type'] || data['MEMBER TYPE'] || data['MemberType'] || '';
+        const csvName = data['Name'] || data['name'] || data['NAME'] || '';
+        const csvMobile = data['Mobile Number'] || data['mobile number'] || data['MOBILE NUMBER'] || data['MobileNumber'] || '';
         
         if (csvEmail === email.toLowerCase().trim()) {
           found = true;
@@ -62,6 +64,8 @@ function verifyUserFromCSV(email, csvPath) {
           resolve({
             found: true,
             email: csvEmail,
+            name: csvName,
+            mobile: csvMobile,
             member_type: displayType,
             original_member_type: csvMemberType
           });
@@ -72,6 +76,8 @@ function verifyUserFromCSV(email, csvPath) {
           resolve({
             found: false,
             email: email.toLowerCase().trim(),
+            name: '',
+            mobile: '',
             member_type: 'Guest',
             original_member_type: null
           });
@@ -112,32 +118,32 @@ router.all('/verify-user', async (req, res) => {
     
     // Define pricing and discount information
     const discountMessages = {
-      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted by USD 1,500!',
-      'EO Dubai Spouse': 'As an EO Dubai Spouse your entry fee is discounted by USD 250!',
-      'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted by USD 250!',
+      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted by AED 5990!',
+      'EO Dubai Spouse': 'As an EO Dubai Spouse your entry fee is discounted by AED 990!',
+      'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted by AED 990!',
       'Guest': 'Standard pricing applies (no discount)'
     };
     
     const prices = {
       'EO Dubai Member': { 
         regular: 0, 
-        vip: 1000,
-        currency: 'USD'
+        vip: 4000,
+        currency: 'AED'
       },
       'EO Dubai Spouse': { 
-        regular: 1250, 
-        vip: 2250,
-        currency: 'USD'
+        regular: 5000, 
+        vip: 9000,
+        currency: 'AED'
       },
       'EO Dubai Accelerator': { 
-        regular: 1250, 
-        vip: 2250,
-        currency: 'USD'
+        regular: 5000, 
+        vip: 9000,
+        currency: 'AED'
       },
       'Guest': { 
-        regular: 1500, 
-        vip: 2500,
-        currency: 'USD'
+        regular: 5990, 
+        vip: 9990,
+        currency: 'AED'
       }
     };
     
@@ -145,6 +151,8 @@ router.all('/verify-user', async (req, res) => {
     const response = {
       success: true,
       email: userInfo.email,
+      name: userInfo.name,
+      mobile: userInfo.mobile,
       member_type: userInfo.member_type,
       is_member: userInfo.found,
       discount_message: discountMessages[userInfo.member_type],
