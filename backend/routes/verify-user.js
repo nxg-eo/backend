@@ -20,6 +20,12 @@ function normalizeMemberType(memberType) {
   if (normalized.includes('eo dubai accelerator') || normalized.includes('accelerator')) {
     return 'eo dubai accelerator';
   }
+  if (normalized.includes('eo dubai next gen') || normalized.includes('next gen')) {
+    return 'eo dubai next gen';
+  }
+  if (normalized.includes('eo dubai key executive') || normalized.includes('key executive')) {
+    return 'eo dubai key executive';
+  }
   
   return 'guest';
 }
@@ -30,6 +36,8 @@ function getMemberTypeDisplay(normalizedType) {
     'eo dubai member': 'EO Dubai Member',
     'eo dubai spouse': 'EO Dubai Spouse',
     'eo dubai accelerator': 'EO Dubai Accelerator',
+    'eo dubai next gen': 'EO Dubai Next Gen',
+    'eo dubai key executive': 'EO Dubai Key Executive',
     'guest': 'Guest'
   };
   return displayNames[normalizedType] || 'Guest';
@@ -38,42 +46,39 @@ function getMemberTypeDisplay(normalizedType) {
 // Function to read CSV and find user
 function verifyUserFromCSV(email, csvPath) {
   return new Promise((resolve, reject) => {
-    const results = [];
-    let found = false;
-    
-    if (!fs.existsSync(csvPath)) {
-      return reject(new Error('CSV file not found'));
-    }
-    
+    const users = [];
     fs.createReadStream(csvPath)
-      .pipe(csv())
-      .on('data', (data) => {
-        // Handle different possible column names
-        const csvEmail = (data['Email'] || data['email'] || data['EMAIL'] || '').toLowerCase().trim();
-        const csvMemberType = data['Member Type'] || data['member type'] || data['MEMBER TYPE'] || data['MemberType'] || '';
-        
-        if (csvEmail === email.toLowerCase().trim()) {
-          found = true;
-          const normalizedType = normalizeMemberType(csvMemberType);
+      .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
+      .on('data', (row) => {
+        users.push(row);
+      })
+      .on('end', () => {
+        const foundUser = users.find(user => user.Email && user.Email.toLowerCase().trim() === email.toLowerCase().trim());
+
+        if (foundUser) {
+          const normalizedType = normalizeMemberType(foundUser['Member Type']);
           const displayType = getMemberTypeDisplay(normalizedType);
-          
-          console.log(`DEBUG: Email: ${csvEmail}, CSV Member Type: '${csvMemberType}', Normalized Type: '${normalizedType}', Display Type: '${displayType}'`);
+
+          console.log(`DEBUG: Email: ${foundUser.Email}, Name: ${foundUser.Name}, Phone: ${foundUser.Phone}, CSV Member Type: '${foundUser['Member Type']}', Normalized Type: '${normalizedType}', Display Type: '${displayType}', Plan: ${foundUser.Plan}`);
 
           resolve({
             found: true,
-            email: csvEmail,
+            email: foundUser.Email,
+            name: foundUser.Name,
+            phone: foundUser.Phone, // Assuming 'Phone' column in CSV is now 'Mobile'
             member_type: displayType,
-            original_member_type: csvMemberType
+            original_member_type: foundUser['Member Type'],
+            plan: foundUser.Plan // Include the plan from CSV
           });
-        }
-      })
-      .on('end', () => {
-        if (!found) {
+        } else {
           resolve({
             found: false,
             email: email.toLowerCase().trim(),
+            name: '',
+            phone: '',
             member_type: 'Guest',
-            original_member_type: null
+            original_member_type: null,
+            plan: 'regular' // Default plan for guests
           });
         }
       })
@@ -110,34 +115,42 @@ router.all('/verify-user', async (req, res) => {
     // Verify user from CSV
     const userInfo = await verifyUserFromCSV(email_input, csvPath);
     
-    // Define pricing and discount information
+    // Define pricing and discount information based on user feedback
     const discountMessages = {
-      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted by USD 1,500!',
-      'EO Dubai Spouse': 'As an EO Dubai Spouse your entry fee is discounted by USD 250!',
-      'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted by USD 250!',
+      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted!',
+      'EO Dubai Spouse': 'As an an EO Dubai Spouse your entry fee is discounted!',
+      'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
+      'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
+      'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
       'Guest': 'Standard pricing applies (no discount)'
     };
     
     const prices = {
       'EO Dubai Member': { 
-        regular: 0, 
-        vip: 1000,
-        currency: 'USD'
+        amount: 1, // AED 1 reversible charge
+        penalty: 3999,
+        currency: 'AED'
       },
       'EO Dubai Spouse': { 
-        regular: 1250, 
-        vip: 2250,
-        currency: 'USD'
+        amount: 1, // AED 1 reversible charge
+        penalty: 3999,
+        currency: 'AED'
       },
       'EO Dubai Accelerator': { 
-        regular: 1250, 
-        vip: 2250,
-        currency: 'USD'
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Dubai Next Gen': { 
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Dubai Key Executive': { 
+        amount: 3999,
+        currency: 'AED'
       },
       'Guest': { 
-        regular: 1500, 
-        vip: 2500,
-        currency: 'USD'
+        amount: 5999, // Default for Others/Guest
+        currency: 'AED'
       }
     };
     
@@ -145,10 +158,13 @@ router.all('/verify-user', async (req, res) => {
     const response = {
       success: true,
       email: userInfo.email,
+      name: userInfo.name,
+      phone: userInfo.phone,
       member_type: userInfo.member_type,
       is_member: userInfo.found,
       discount_message: discountMessages[userInfo.member_type],
       pricing: prices[userInfo.member_type],
+      plan: userInfo.plan, // Include the plan in the response
       verification_timestamp: new Date().toISOString()
     };
     
