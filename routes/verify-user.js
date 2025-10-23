@@ -48,7 +48,15 @@ function verifyUserFromCSV(email, csvPath) {
   return new Promise((resolve, reject) => {
     const users = [];
     fs.createReadStream(csvPath)
-      .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
+      .pipe(csv({ 
+        skipLines: 1, // Skip the first empty row
+        mapHeaders: ({ header }) => {
+          const trimmedHeader = header.trim();
+          if (trimmedHeader === 'Category') return 'Member Type';
+          if (trimmedHeader === 'Mobile') return 'Phone';
+          return trimmedHeader;
+        }
+      }))
       .on('data', (row) => {
         users.push(row);
       })
@@ -110,7 +118,7 @@ router.all('/verify-user', async (req, res) => {
       });
     }
     
-    const csvPath = path.join(__dirname, '../members.csv');
+    const csvPath = path.join(__dirname, '../Test Database - Sheet1.csv');
     
     // Verify user from CSV
     const userInfo = await verifyUserFromCSV(email_input, csvPath);
