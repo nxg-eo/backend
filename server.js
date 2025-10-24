@@ -453,60 +453,18 @@ app.get('/payment/success', async (req, res) => {
         }
       }
 
-      // Redirect to thank you page using meta refresh
+      // Redirect to thank you page
       const redirectUrl = `${FRONTEND_URL}/thanks.php?session_id=${metadata.sessionId || sessionId}`;
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Redirecting...</title>
-          <meta http-equiv="refresh" content="0;url=${redirectUrl}" />
-          <script>
-            window.location.replace("${redirectUrl}");
-          </script>
-        </head>
-        <body>
-          <p>If you are not redirected automatically, follow this <a href="${redirectUrl}">link</a>.</p>
-        </body>
-        </html>
-      `);
+      res.redirect(302, redirectUrl);
     } else {
       console.error('[payment/success] Payment not successful:', telrOrder.status);
       const redirectUrl = `${FRONTEND_URL}/registration.php?error=payment_failed`;
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Redirecting...</title>
-          <meta http-equiv="refresh" content="0;url=${redirectUrl}" />
-          <script>
-            window.location.replace("${redirectUrl}");
-          </script>
-        </head>
-        <body>
-          <p>If you are not redirected automatically, follow this <a href="${redirectUrl}">link</a>.</p>
-        </body>
-        </html>
-      `);
+      res.redirect(302, redirectUrl);
     }
   } catch (error) {
     console.error('[payment/success] Error:', error);
     const redirectUrl = `${FRONTEND_URL}/registration.php?error=processing_failed`;
-    res.status(200).send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Redirecting...</title>
-        <meta http-equiv="refresh" content="0;url=${redirectUrl}" />
-        <script>
-          window.location.replace("${redirectUrl}");
-        </script>
-      </head>
-      <body>
-        <p>If you are not redirected automatically, follow this <a href="${redirectUrl}">link</a>.</p>
-      </body>
-      </html>
-    `);
+    res.redirect(302, redirectUrl);
   }
 });
 
