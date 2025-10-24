@@ -40,7 +40,6 @@ const corsOptions = {
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors(corsOptions));
 
 // Log request origins for debugging
 app.use((req, res, next) => {
@@ -221,7 +220,7 @@ async function processRefund(orderRef, amount = '1.00') {
 ensureCSVFiles();
 
 // Create Telr checkout session
-app.post('/api/create-checkout-session', async (req, res) => {
+app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => {
   try {
     const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
