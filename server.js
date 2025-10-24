@@ -29,7 +29,8 @@ const corsOptions = {
     'http://eodubai.com',
     'https://www.eodubai.com',
     'http://www.eodubai.com',
-    FRONTEND_URL
+    FRONTEND_URL,
+    '*' // Temporarily add wildcard for debugging
   ],
   credentials: true,
   optionsSuccessStatus: 200,
