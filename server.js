@@ -623,6 +623,56 @@ app.get('/api/penalties', (req, res) => {
   }
 });
 
+// Get single registration by session ID
+app.get('/api/registration/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const registrationsFile = path.join(__dirname, 'registrations.csv');
+
+    if (!fs.existsSync(registrationsFile)) {
+      return res.status(404).json({ error: 'Registrations file not found' });
+    }
+
+    const csvContent = fs.readFileSync(registrationsFile, 'utf8');
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',');
+
+    let foundRegistration = null;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        const fields = line.match(/(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]*))/g).map(field => field.replace(/^"|"$/g, '').replace(/""/g, '"'));
+        if (fields[1] === sessionId) { // Assuming sessionId is the second field (index 1)
+          foundRegistration = {};
+          headers.forEach((header, index) => {
+            foundRegistration[header.trim()] = fields[index];
+          });
+          break;
+        }
+      }
+    }
+
+    if (foundRegistration) {
+      // Generate QR code URL for the found registration
+      const qrCodeData = JSON.stringify({
+        sessionId: foundRegistration.sessionId,
+        name: foundRegistration.name,
+        email: foundRegistration.email,
+        plan: foundRegistration.plan,
+        chapter: foundRegistration.chapter
+      });
+      foundRegistration.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
+      
+      return res.json({ success: true, registration: foundRegistration });
+    } else {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+  } catch (error) {
+    console.error('[api/registration/:sessionId] Error:', error);
+    res.status(500).json({ error: 'Failed to retrieve registration details' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
