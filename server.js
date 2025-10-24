@@ -20,6 +20,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/ai-for-business';
 
 const app = express();
+app.set('trust proxy', true); // Trust proxy for Railway deployment
 
 // CORS configuration
 const corsOptions = {
@@ -342,7 +343,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 });
 
 // Payment success handler
-app.get('/telr-payment-success', async (req, res) => {
+app.get('/synapse/backend/telr-payment-success', async (req, res) => {
   try {
     const sessionId = req.query.session_id;
     const orderRef = req.query.order_ref;
