@@ -17,7 +17,7 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_9GB3ogth_H5qP89wpBXv
 const fromEmail = process.env.FROM_EMAIL?.match(/<([^>]+)>/)?.[1] || 'noreply@eodubai.com';
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/synapse';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/ai-for-business';
 
 const app = express();
 
@@ -240,7 +240,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
     const backendUrl = isProduction 
-      ? 'https://eodubai.com/synapse/backend' 
+      ? 'https://eodubai.com/ai-for-business/backend' 
       : `http://localhost:${PORT}`;
 
     // Generate unique session ID
