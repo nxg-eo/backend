@@ -347,55 +347,21 @@ app.post('/api/create-checkout-session', async (req, res) => {
 app.get('/payment/success', async (req, res) => {
   try {
     const sessionId = req.query.session_id;
-    let orderRef = req.query.order_ref; // Try to get orderRef from query
+    const orderRef = req.query.order_ref;
 
     console.log('[payment/success] Processing successful payment:', { sessionId, orderRef });
 
-    if (!sessionId) {
-      console.error('[payment/success] Missing session_id');
+    if (!sessionId && !orderRef) {
+      console.error('[payment/success] Missing session_id or order_ref');
       return res.redirect(`${FRONTEND_URL}/registration.php?error=missing_reference`);
     }
 
-    // If orderRef is missing from query, try to find it from metadata files
-    if (!orderRef) {
-      console.log('[payment/success] orderRef missing from query, searching metadata files...');
-      const metadataDir = path.join(__dirname, 'telr_transactions');
-      if (fs.existsSync(metadataDir)) {
-        const files = fs.readdirSync(metadataDir);
-        for (const file of files) {
-          if (file.endsWith('_metadata.json')) {
-            const filePath = path.join(metadataDir, file);
-            try {
-              const metadataContent = fs.readFileSync(filePath, 'utf8');
-              const metadata = JSON.parse(metadataContent);
-              if (metadata.sessionId === sessionId) {
-                orderRef = file.replace('_metadata.json', ''); // Extract orderRef from filename
-                console.log(`[payment/success] Found orderRef ${orderRef} for sessionId ${sessionId} from metadata.`);
-                break; // Found it, no need to search further
-              }
-            } catch (readError) {
-              console.error(`[payment/success] Error reading or parsing metadata file ${file}:`, readError);
-            }
-          }
-        }
-      }
-    }
-
-    if (!orderRef) {
-      console.error('[payment/success] Could not determine orderRef for sessionId:', sessionId);
-      return res.redirect(`${FRONTEND_URL}/registration.php?error=order_ref_not_found`);
-    }
-
-    // Load metadata (now we have orderRef)
+    // Load metadata
     const metadataPath = path.join(__dirname, 'telr_transactions', `${orderRef}_metadata.json`);
     let metadata = {};
     
     if (fs.existsSync(metadataPath)) {
       metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    } else {
-      console.warn(`[payment/success] Metadata file not found for orderRef: ${orderRef}`);
-      // This might happen if the metadata was not saved correctly, or if the orderRef was inferred.
-      // Proceed with caution, some metadata fields might be missing.
     }
 
     // Verify transaction with Telr
@@ -414,7 +380,7 @@ app.get('/payment/success', async (req, res) => {
 
     const telrOrder = telrResponse.data.order;
 
-    if (telrOrder && telrOrder.status && (telrOrder.status.code === 3 || telrOrder.status.code === 2)) {
+    if (telrOrder && telrOrder.status && telrOrder.status.code === 3) {
       // Payment successful - extract card token
       const cardToken = telrOrder.token || null;
       
