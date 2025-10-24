@@ -15,9 +15,9 @@ const TELR_AUTH_KEY = process.env.TELR_AUTH_KEY || 'h9nFv#Hf8L^Lgkth';
 const TELR_API_URL = 'https://secure.telr.com/gateway/order.json';
 const resend = new Resend(process.env.RESEND_API_KEY || 're_9GB3ogth_H5qP89wpBXvcDkNQ1g8aadwX');
 const fromEmail = process.env.FROM_EMAIL?.match(/<([^>]+)>/)?.[1] || 'noreply@eodubai.com';
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/synapse';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/ai-for-business';
 
 const app = express();
 app.set('trust proxy', true); // Trust proxy for Railway deployment
@@ -426,7 +426,7 @@ app.get('/telr-payment-success', async (req, res) => {
       res.redirect(`${FRONTEND_URL}/registration.php?error=payment_failed`);
     }
   } catch (error) {
-    console.error('[telr-payment-success] Error:', error.message, error.stack);
+    console.error('[telr-payment-success] Error:', error);
     res.redirect(`${FRONTEND_URL}/registration.php?error=processing_failed`);
   }
 });
