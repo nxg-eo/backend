@@ -24,11 +24,9 @@ const app = express();
 // CORS configuration
 const corsOptions = {
   origin: [
-    'http://localhost:8000',
     'https://eodubai.com',
-    'http://eodubai.com',
     'https://www.eodubai.com',
-    'http://www.eodubai.com',
+    'http://localhost:8000', // For local testing
     FRONTEND_URL
   ],
   credentials: true,
@@ -241,7 +239,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
     const backendUrl = isProduction 
-      ? 'https://eodubai.com/synapse/backend' 
+      ? 'https://backend-production-c14ce.up.railway.app' 
       : `http://localhost:${PORT}`;
 
     // Generate unique session ID
