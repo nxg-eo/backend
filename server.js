@@ -263,7 +263,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
       ivp_framed: '0',
-      return_auth: `${backendUrl}/payment/success?session_id=${sessionId}`,
+      return_auth: `${backendUrl}/telr-payment-success?session_id=${sessionId}`,
       return_decl: `${backendUrl}/payment/fail?session_id=${sessionId}`,
       return_can: `${backendUrl}/payment/cancel?session_id=${sessionId}`,
       bill_fname: firstName,
@@ -344,15 +344,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
 });
 
 // Payment success handler
-app.get('/payment/success', async (req, res) => {
+app.get('/telr-payment-success', async (req, res) => {
   try {
     const sessionId = req.query.session_id;
     const orderRef = req.query.order_ref;
 
-    console.log('[payment/success] Processing successful payment:', { sessionId, orderRef });
+    console.log('[telr-payment-success] Processing successful payment:', { sessionId, orderRef });
 
     if (!sessionId && !orderRef) {
-      console.error('[payment/success] Missing session_id or order_ref');
+      console.error('[telr-payment-success] Missing session_id or order_ref');
       return res.redirect(`${FRONTEND_URL}/registration.php?error=missing_reference`);
     }
 
@@ -409,13 +409,13 @@ app.get('/payment/success', async (req, res) => {
 
       // Process refund for EO Dubai members/spouses (AED 1)
       if (metadata.requiresRefund) {
-        console.log('[payment/success] Initiating refund for EO Dubai member/spouse');
+        console.log('[telr-payment-success] Initiating refund for EO Dubai member/spouse');
         const refundResult = await processRefund(orderRef, '1.00');
         
         if (refundResult.success) {
-          console.log('[payment/success] Refund processed successfully');
+          console.log('[telr-payment-success] Refund processed successfully');
         } else {
-          console.error('[payment/success] Refund failed:', refundResult.error);
+          console.error('[telr-payment-success] Refund failed:', refundResult.error);
           // Note: Registration is still valid, but log for manual refund
         }
       }
@@ -423,11 +423,11 @@ app.get('/payment/success', async (req, res) => {
       // Redirect to thank you page
       res.redirect(`${FRONTEND_URL}/thanks.php?session_id=${metadata.sessionId || sessionId}`);
     } else {
-      console.error('[payment/success] Payment not successful:', telrOrder.status);
+      console.error('[telr-payment-success] Payment not successful:', telrOrder.status);
       res.redirect(`${FRONTEND_URL}/registration.php?error=payment_failed`);
     }
   } catch (error) {
-    console.error('[payment/success] Error:', error);
+    console.error('[telr-payment-success] Error:', error);
     res.redirect(`${FRONTEND_URL}/registration.php?error=processing_failed`);
   }
 });
