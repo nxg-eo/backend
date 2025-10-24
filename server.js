@@ -262,7 +262,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
       ivp_framed: '0',
-      return_auth: `${backendUrl}/telr-payment-success?session_id=${sessionId}`,
+      return_auth: `${backendUrl}/telr-payment-success?session_id=${sessionId}&order_ref=${orderRef}`,
       return_decl: `${backendUrl}/payment/fail?session_id=${sessionId}`,
       return_can: `${backendUrl}/payment/cancel?session_id=${sessionId}`,
       bill_fname: firstName,
