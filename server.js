@@ -29,8 +29,7 @@ const corsOptions = {
     'http://eodubai.com',
     'https://www.eodubai.com',
     'http://www.eodubai.com',
-    FRONTEND_URL,
-    '*' // Temporarily add wildcard for debugging
+    FRONTEND_URL
   ],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -688,8 +687,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mount verify-user router
-app.use('/api', verifyUserRouter);
+// Mount verify-user router with CORS
+app.use('/api', cors(corsOptions), verifyUserRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
