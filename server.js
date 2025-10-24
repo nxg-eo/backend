@@ -343,7 +343,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 });
 
 // Payment success handler
-app.get('/telr-payment-success', async (req, res) => {
+app.get('/synapse/backend/telr-payment-success', async (req, res) => {
   try {
     const sessionId = req.query.session_id;
     const orderRef = req.query.order_ref;
