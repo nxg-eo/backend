@@ -456,13 +456,16 @@ app.get('/payment/success', async (req, res) => {
       }
 
       // Redirect to thank you page
+      res.setHeader('Content-Type', 'text/html');
       res.redirect(`${FRONTEND_URL}/thanks.php?session_id=${metadata.sessionId || sessionId}`);
     } else {
       console.error('[payment/success] Payment not successful:', telrOrder.status);
+      res.setHeader('Content-Type', 'text/html');
       res.redirect(`${FRONTEND_URL}/registration.php?error=payment_failed`);
     }
   } catch (error) {
     console.error('[payment/success] Error:', error);
+    res.setHeader('Content-Type', 'text/html');
     res.redirect(`${FRONTEND_URL}/registration.php?error=processing_failed`);
   }
 });
