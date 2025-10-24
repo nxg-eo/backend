@@ -15,7 +15,6 @@ const TELR_AUTH_KEY = process.env.TELR_AUTH_KEY || 'h9nFv#Hf8L^Lgkth';
 const TELR_API_URL = 'https://secure.telr.com/gateway/order.json';
 const resend = new Resend(process.env.RESEND_API_KEY || 're_9GB3ogth_H5qP89wpBXvcDkNQ1g8aadwX');
 const fromEmail = process.env.FROM_EMAIL?.match(/<([^>]+)>/)?.[1] || 'noreply@eodubai.com';
-// CRITICAL FIX: Railway uses dynamic PORT allocation - must use process.env.PORT
 const PORT = process.env.PORT || 8080;
 const isProduction = process.env.NODE_ENV === 'production';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/synapse';
@@ -29,7 +28,6 @@ const corsOptions = {
     'https://eodubai.com',
     'https://www.eodubai.com',
     'http://localhost:8000', // For local testing
-    'http://localhost:8080', // For local testing
     FRONTEND_URL
   ],
   credentials: true,
@@ -241,8 +239,6 @@ app.post('/api/create-checkout-session', async (req, res) => {
     }
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
-    
-    // CRITICAL FIX: Use Railway's generated domain
     const backendUrl = isProduction 
       ? 'https://backend-production-c14ce.up.railway.app' 
       : `http://localhost:${PORT}`;
@@ -266,7 +262,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
       ivp_framed: '0',
-      return_auth: `${backendUrl}/telr-payment-success?session_id=${sessionId}`,
+      return_auth: `${backendUrl}/telr-payment-success?session_id=${sessionId}&order_ref=${orderRef}`,
       return_decl: `${backendUrl}/payment/fail?session_id=${sessionId}`,
       return_can: `${backendUrl}/payment/cancel?session_id=${sessionId}`,
       bill_fname: firstName,
@@ -349,42 +345,14 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // Payment success handler
 app.get('/telr-payment-success', async (req, res) => {
   try {
-    let sessionId = req.query.session_id;
-    let orderRef = req.query.order_ref;
+    const sessionId = req.query.session_id;
+    const orderRef = req.query.order_ref;
 
     console.log('[telr-payment-success] Processing successful payment:', { sessionId, orderRef });
 
-    if (!sessionId) {
-      console.error('[telr-payment-success] Missing session_id');
-      return res.redirect(`${FRONTEND_URL}/registration.php?error=missing_session_id`);
-    }
-
-    // If orderRef is missing, try to find it from metadata files using sessionId
-    if (!orderRef) {
-      const metadataDir = path.join(__dirname, 'telr_transactions');
-      if (fs.existsSync(metadataDir)) {
-        const files = fs.readdirSync(metadataDir);
-        for (const file of files) {
-          if (file.endsWith('_metadata.json')) {
-            const currentMetadataPath = path.join(metadataDir, file);
-            try {
-              const currentMetadata = JSON.parse(fs.readFileSync(currentMetadataPath, 'utf8'));
-              if (currentMetadata.sessionId === sessionId) {
-                orderRef = file.replace('_metadata.json', '');
-                console.log(`[telr-payment-success] Found orderRef ${orderRef} for sessionId ${sessionId} from metadata.`);
-                break;
-              }
-            } catch (parseError) {
-              console.error(`[telr-payment-success] Error parsing metadata file ${file}:`, parseError);
-            }
-          }
-        }
-      }
-    }
-
-    if (!orderRef) {
-      console.error('[telr-payment-success] Could not find orderRef for sessionId:', sessionId);
-      return res.redirect(`${FRONTEND_URL}/registration.php?error=order_ref_not_found`);
+    if (!sessionId && !orderRef) {
+      console.error('[telr-payment-success] Missing session_id or order_ref');
+      return res.redirect(`${FRONTEND_URL}/registration.php?error=missing_reference`);
     }
 
     // Load metadata
@@ -393,9 +361,6 @@ app.get('/telr-payment-success', async (req, res) => {
     
     if (fs.existsSync(metadataPath)) {
       metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    } else {
-      console.error(`[telr-payment-success] Metadata file not found for orderRef: ${orderRef}`);
-      return res.redirect(`${FRONTEND_URL}/registration.php?error=metadata_not_found`);
     }
 
     // Verify transaction with Telr
@@ -629,25 +594,9 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    port: PORT,
     frontendUrl: FRONTEND_URL,
     telrConfigured: !!(TELR_STORE_ID && TELR_AUTH_KEY),
     resendConfigured: !!(process.env.RESEND_API_KEY && fromEmail)
-  });
-});
-
-// Root route for testing
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'EO Dubai AI Workshop Backend API',
-    status: 'running',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      createCheckout: '/api/create-checkout-session',
-      registrations: '/api/registrations',
-      penalties: '/api/penalties'
-    }
   });
 });
 
@@ -672,19 +621,16 @@ app.use((req, res) => {
   });
 });
 
-// Start server - Railway assigns PORT dynamically
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`==========================================`);
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`🌐 Backend URL: ${isProduction ? 'https://backend-production-c14ce.up.railway.app' : `http://localhost:${PORT}`}`);
-  console.log(`🔒 CORS enabled for: ${corsOptions.origin.join(', ')}`);
-  console.log(`💳 Telr Store ID: ${TELR_STORE_ID ? '✅ Configured' : '❌ MISSING'}`);
-  console.log(`🔑 Telr Auth Key: ${TELR_AUTH_KEY ? '✅ Configured' : '❌ MISSING'}`);
-  console.log(`📧 Resend API Key: ${process.env.RESEND_API_KEY ? '✅ Configured' : '❌ MISSING'}`);
-  console.log(`📮 From Email: ${fromEmail}`);
-  console.log(`==========================================`);
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Frontend URL: ${FRONTEND_URL}`);
+  console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
+  console.log(`Telr Store ID: ${TELR_STORE_ID ? 'Configured' : 'MISSING'}`);
+  console.log(`Telr Auth Key: ${TELR_AUTH_KEY ? 'Configured' : 'MISSING'}`);
+  console.log(`Resend API Key: ${process.env.RESEND_API_KEY ? 'Configured' : 'MISSING'}`);
+  console.log(`From Email: ${fromEmail}`);
 });
 
 module.exports = app;
