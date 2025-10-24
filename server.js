@@ -12,7 +12,7 @@ const querystring = require('querystring');
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
 const TELR_AUTH_KEY = process.env.TELR_AUTH_KEY || 'h9nFv#Hf8L^Lgkth';
-const TELR_API_URL = 'https://secure.telr.com/gateway/order.json'; // Verify with Telr documentation
+const TELR_API_URL = 'https://secure.telr.com/gateway/order.json';
 const resend = new Resend(process.env.RESEND_API_KEY || 're_9GB3ogth_H5qP89wpBXvcDkNQ1g8aadwX');
 const fromEmail = process.env.FROM_EMAIL?.match(/<([^>]+)>/)?.[1] || 'noreply@eodubai.com';
 const PORT = process.env.PORT || 3001;
@@ -49,85 +49,159 @@ app.use((req, res, next) => {
 
 // Initialize CSV files
 function ensureCSVFiles() {
-  const presentFile = path.join(__dirname, 'attendance_present.csv');
-  const absentFile = path.join(__dirname, 'attendance_absent.csv');
+  const registrationsFile = path.join(__dirname, 'registrations.csv');
+  const penaltiesFile = path.join(__dirname, 'penalty_records.csv');
   
-  const csvHeader = 'sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,dateRegistered,penaltyAmount,penaltyStatus\n';
+  const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus\n';
+  const penaltyHeader = 'timestamp,sessionId,name,email,originalTransactionId,penaltyAmount,penaltyStatus,penaltyTransactionId,notes\n';
   
-  if (!fs.existsSync(presentFile)) {
-    fs.writeFileSync(presentFile, csvHeader);
+  if (!fs.existsSync(registrationsFile)) {
+    fs.writeFileSync(registrationsFile, registrationHeader);
   }
   
-  if (!fs.existsSync(absentFile)) {
-    fs.writeFileSync(absentFile, csvHeader);
+  if (!fs.existsSync(penaltiesFile)) {
+    fs.writeFileSync(penaltiesFile, penaltyHeader);
   }
 }
 
-// Save Telr transaction
-async function saveTelrTransaction(transaction) {
-  const transactionId = transaction.ref;
-  const dirPath = path.join(__dirname, 'telr_transactions');
+// Save registration to CSV
+function saveRegistrationToCSV(registrationData) {
+  const filePath = path.join(__dirname, 'registrations.csv');
   
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-  
-  const filePath = path.join(dirPath, `${transactionId}.json`);
   try {
-    await fs.promises.writeFile(filePath, JSON.stringify(transaction, null, 2), 'utf8');
-    console.log(`[saveTelrTransaction] Transaction ${transactionId} saved to ${filePath}`);
+    const csvLine = `${new Date().toISOString()},${registrationData.sessionId},"${registrationData.name}",${registrationData.email},${registrationData.phone},${registrationData.chapter},${registrationData.plan},${registrationData.paymentAmount},${registrationData.paymentCurrency},${registrationData.transactionId},${registrationData.telrCardToken || 'N/A'},${registrationData.noShowConsent},${registrationData.penaltyAmount || 0},${registrationData.registrationStatus}\n`;
+    
+    fs.appendFileSync(filePath, csvLine);
+    console.log(`[saveRegistrationToCSV] Registration saved for ${registrationData.email}`);
   } catch (error) {
-    console.error(`[saveTelrTransaction] Error saving transaction ${transactionId}:`, error);
+    console.error(`[saveRegistrationToCSV] Error saving registration:`, error);
     throw error;
   }
 }
 
-ensureCSVFiles();
-
-// Test Telr API connectivity
-app.get('/api/test-telr', async (req, res) => {
+// Save penalty record to CSV
+function savePenaltyToCSV(penaltyData) {
+  const filePath = path.join(__dirname, 'penalty_records.csv');
+  
   try {
-    const { method = 'create', order_ref } = req.query; // Allow method and order_ref as query params
-    const isCheckMethod = method === 'check';
+    const csvLine = `${new Date().toISOString()},${penaltyData.sessionId},"${penaltyData.name}",${penaltyData.email},${penaltyData.originalTransactionId},${penaltyData.penaltyAmount},${penaltyData.penaltyStatus},${penaltyData.penaltyTransactionId || 'N/A'},"${penaltyData.notes}"\n`;
+    
+    fs.appendFileSync(filePath, csvLine);
+    console.log(`[savePenaltyToCSV] Penalty record saved for ${penaltyData.email}`);
+  } catch (error) {
+    console.error(`[savePenaltyToCSV] Error saving penalty:`, error);
+    throw error;
+  }
+}
 
-    if (isCheckMethod && !order_ref) {
-      return res.status(400).json({
-        success: false,
-        error: 'order_ref is required for check method'
-      });
+// Generate QR Code and send email
+async function sendQRCodeEmail(registrationData) {
+  try {
+    const qrCodeData = JSON.stringify({
+      sessionId: registrationData.sessionId,
+      name: registrationData.name,
+      email: registrationData.email,
+      plan: registrationData.plan,
+      chapter: registrationData.chapter
+    });
+
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
+
+    const emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">AI FOR BUSINESS</h1>
+            <p style="color: white; margin: 10px 0 0 0;">23-24 January 2026</p>
+          </div>
+          
+          <div style="padding: 30px; background: #f9f9f9;">
+            <h2 style="color: #333; margin-top: 0;">Registration Confirmed!</h2>
+            <p>Dear ${registrationData.name},</p>
+            <p>Thank you for registering for the <strong>AI FOR BUSINESS Workshop</strong> hosted by EO Dubai.</p>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+              <h3 style="color: #667eea; margin-top: 0;">Your Event QR Code</h3>
+              <img src="${qrCodeUrl}" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; border-radius: 10px;" />
+              <p style="margin-top: 20px; font-size: 14px; color: #666;">Please present this QR code at the event entrance</p>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0;">
+              <h3 style="color: #667eea; margin-top: 0;">Event Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Date:</td>
+                  <td style="padding: 8px 0;">23-24 January 2026</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Venue:</td>
+                  <td style="padding: 8px 0;">Marriott Palm Jumeirah, Dubai</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Chapter:</td>
+                  <td style="padding: 8px 0;">${registrationData.chapter}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Registration ID:</td>
+                  <td style="padding: 8px 0;">${registrationData.sessionId}</td>
+                </tr>
+              </table>
+            </div>
+            
+            ${registrationData.noShowConsent ? `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; border-left: 4px solid #ffc107;">
+              <p style="margin: 0; color: #856404;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED ${registrationData.penaltyAmount} will be charged if you do not attend the event.</p>
+            </div>
+            ` : ''}
+            
+            <p style="margin-top: 30px;">We look forward to seeing you at the event!</p>
+            <p>Best regards,<br><strong>EO Dubai Team</strong></p>
+          </div>
+          
+          <div style="background: #333; padding: 20px; text-align: center; color: white; font-size: 12px;">
+            <p style="margin: 0;">© 2026 EO Dubai. All rights reserved.</p>
+            <p style="margin: 10px 0 0 0;">For support, contact: <a href="mailto:${fromEmail}" style="color: #667eea;">${fromEmail}</a></p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const result = await resend.emails.send({
+      from: fromEmail,
+      to: [registrationData.email],
+      subject: 'Your AI FOR BUSINESS Event QR Code - Registration Confirmed',
+      html: emailHtml,
+    });
+
+    if (result.error) {
+      console.error('[sendQRCodeEmail] Email sending failed:', result.error);
+      return { success: false, error: result.error };
     }
 
-    const testParams = isCheckMethod
-      ? {
-          ivp_method: 'check',
-          ivp_store: TELR_STORE_ID,
-          ivp_authkey: TELR_AUTH_KEY,
-          order_ref: order_ref
-        }
-      : {
-          ivp_method: 'create',
-          ivp_store: TELR_STORE_ID,
-          ivp_authkey: TELR_AUTH_KEY,
-          ivp_cart: `TEST-${Date.now()}`,
-          ivp_test: isProduction ? '0' : '1',
-          ivp_amount: '1.00',
-          ivp_currency: 'AED',
-          ivp_desc: 'Test Transaction',
-          ivp_framed: '0',
-          return_auth: `${isProduction ? 'https://eodubai.com/synapse/backend' : `http://localhost:${PORT}`}/payment/success?order_ref=[ORDER_REF]`,
-          return_decl: `${isProduction ? 'https://eodubai.com/synapse/backend' : `http://localhost:${PORT}`}/payment/fail`,
-          return_can: `${isProduction ? 'https://eodubai.com/synapse/backend' : `http://localhost:${PORT}`}/payment/cancel`,
-          bill_fname: 'Test',
-          bill_sname: 'User',
-          bill_email: 'test@example.com',
-          bill_addr1: 'UAE',
-          bill_city: 'Dubai',
-          bill_country: 'AE'
-        };
+    console.log('[sendQRCodeEmail] QR code email sent successfully to:', registrationData.email);
+    return { success: true, messageId: result.id };
+  } catch (error) {
+    console.error('[sendQRCodeEmail] Error sending email:', error);
+    return { success: false, error: error.message };
+  }
+}
 
-    console.log(`[test-telr] Testing Telr API with method=${method}, params:`, testParams);
+// Refund AED 1 for EO Dubai members/spouses
+async function processRefund(orderRef, amount = '1.00') {
+  try {
+    console.log(`[processRefund] Initiating refund for order ${orderRef}, amount: AED ${amount}`);
+    
+    // Note: Telr refund API endpoint - verify with Telr documentation
+    const refundParams = {
+      ivp_method: 'refund',
+      ivp_store: TELR_STORE_ID,
+      ivp_authkey: TELR_AUTH_KEY,
+      order_ref: orderRef,
+      ivp_amount: amount,
+      ivp_currency: 'AED'
+    };
 
-    const telrResponse = await axios.post(TELR_API_URL, querystring.stringify(testParams), {
+    const refundResponse = await axios.post(TELR_API_URL, querystring.stringify(refundParams), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Expect': ''
@@ -135,94 +209,71 @@ app.get('/api/test-telr', async (req, res) => {
       timeout: 30000
     });
 
-    console.log('[test-telr] Telr API response:', JSON.stringify(telrResponse.data, null, 2));
-
-    res.json({
-      success: true,
-      method: method,
-      response: telrResponse.data
-    });
+    console.log('[processRefund] Refund response:', refundResponse.data);
+    return { success: true, data: refundResponse.data };
   } catch (error) {
-    console.error('[test-telr] Telr API test failed:', error.response?.data || error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Telr API test failed',
-      details: error.response?.data || error.message
-    });
+    console.error('[processRefund] Refund failed:', error.response?.data || error.message);
+    return { success: false, error: error.message };
   }
-});
+}
+
+ensureCSVFiles();
 
 // Create Telr checkout session
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
     const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
-    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, noShowConsent });
+    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
     // Validate inputs
     if (!amount || isNaN(amount) || amount <= 0) {
-      console.error('[create-checkout-session] Invalid amount:', amount);
       return res.status(400).json({ error: 'Invalid amount provided' });
     }
 
     if (!currency || typeof currency !== 'string') {
-      console.error('[create-checkout-session] Invalid currency:', currency);
       return res.status(400).json({ error: 'Invalid currency provided' });
     }
 
-    if (!plan || typeof plan !== 'string') {
-      console.error('[create-checkout-session] Invalid plan:', plan);
-      return res.status(400).json({ error: 'Invalid plan provided' });
-    }
-
     if (!email || typeof email !== 'string') {
-      console.error('[create-checkout-session] Invalid email:', email);
       return res.status(400).json({ error: 'Invalid email provided' });
     }
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
-
-    // Backend server URLs for Telr callbacks
     const backendUrl = isProduction 
       ? 'https://eodubai.com/synapse/backend' 
       : `http://localhost:${PORT}`;
 
-    // Telr is expected to append the order_ref to this URL.
-    // Some payment gateways use placeholders like [ORDER_REF] or {ORDER_REF}.
-    // Telr does not support placeholders in return_auth.
-    // Redirecting directly to frontend thanks.php, which will then call backend to send email.
-    const successUrl = `${FRONTEND_URL}/thanks.php`;
-    const cancelUrl = `${backendUrl}/payment/cancel`;
-    const declinedUrl = `${backendUrl}/payment/fail`;
+    // Generate unique session ID
+    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-    // Split name into first and last name
+    // Split name
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0] || name;
     const lastName = nameParts.slice(1).join(' ') || 'User';
 
-    // Generate unique cart ID
-    const cartId = `SYNAPSE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    // Telr parameters
+    // Telr parameters with card tokenization enabled
     const telrParams = {
       ivp_method: 'create',
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
-      ivp_cart: cartId,
+      ivp_cart: sessionId,
       ivp_test: isProduction ? '0' : '1',
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
-      ivp_desc: `SYNAPSE Event - ${plan === 'vip' ? 'VIP' : 'Regular'} Pass`,
+      ivp_desc: `AI FOR BUSINESS - ${chapter}`,
       ivp_framed: '0',
-      return_auth: successUrl,
-      return_decl: declinedUrl,
-      return_can: cancelUrl,
+      return_auth: `${backendUrl}/payment/success?session_id=${sessionId}`,
+      return_decl: `${backendUrl}/payment/fail?session_id=${sessionId}`,
+      return_can: `${backendUrl}/payment/cancel?session_id=${sessionId}`,
       bill_fname: firstName,
       bill_sname: lastName,
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
-      bill_country: 'AE'
+      bill_country: 'AE',
+      // Enable card tokenization for future charges
+      ivp_create_token: '1'
     };
 
     if (phone) {
@@ -231,321 +282,345 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
     console.log('[create-checkout-session] Sending Telr params:', telrParams);
 
-    // Send request to Telr
-    try {
-      const telrResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Expect': ''
-        },
-        timeout: 30000
+    const telrResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Expect': ''
+      },
+      timeout: 30000
+    });
+
+    console.log('[create-checkout-session] Telr API response:', JSON.stringify(telrResponse.data, null, 2));
+
+    if (telrResponse.data && telrResponse.data.error) {
+      return res.status(400).json({ 
+        error: 'Telr API error',
+        details: telrResponse.data.error.message || 'Unknown error from Telr'
       });
+    }
 
-      console.log('[create-checkout-session] Telr API response:', JSON.stringify(telrResponse.data, null, 2));
+    if (telrResponse.data && telrResponse.data.order && telrResponse.data.order.url) {
+      const orderRef = telrResponse.data.order.ref;
+      
+      // Save metadata including penalty info
+      const metadataPath = path.join(__dirname, 'telr_transactions', `${orderRef}_metadata.json`);
+      const metadata = {
+        sessionId,
+        plan,
+        chapter,
+        noShowConsent,
+        email,
+        name,
+        phone,
+        amount: amountInDecimal,
+        currency: currency.toUpperCase(),
+        penaltyAmount: noShowConsent ? 3999 : 0,
+        requiresRefund: (chapter === 'EO Dubai Member' || chapter === 'EO Dubai Spouse'),
+        createdAt: new Date().toISOString()
+      };
 
-      if (telrResponse.data && telrResponse.data.error) {
-        console.error('[create-checkout-session] Telr API error:', telrResponse.data.error);
-        return res.status(400).json({ 
-          error: 'Telr API error',
-          details: telrResponse.data.error.message || 'Unknown error from Telr',
-          note: telrResponse.data.error.note || ''
-        });
+      const metadataDir = path.join(__dirname, 'telr_transactions');
+      if (!fs.existsSync(metadataDir)) {
+        fs.mkdirSync(metadataDir, { recursive: true });
       }
 
-      if (telrResponse.data && telrResponse.data.order && telrResponse.data.order.url) {
-        const orderRef = telrResponse.data.order.ref;
-        const metadataPath = path.join(__dirname, 'telr_transactions', `${orderRef}_metadata.json`);
-        const metadata = {
-          plan,
-          chapter,
-          noShowConsent,
-          email,
-          name,
-          phone,
-          amount: amountInDecimal,
-          currency: currency.toUpperCase(),
-          cartId,
-          createdAt: new Date().toISOString()
-        };
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
-        const metadataDir = path.join(__dirname, 'telr_transactions');
-        if (!fs.existsSync(metadataDir)) {
-          fs.mkdirSync(metadataDir, { recursive: true });
-        }
-
-        fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-
-        res.json({
-          redirectUrl: telrResponse.data.order.url,
-          telrRef: orderRef
-        });
-      } else {
-        console.error('[create-checkout-session] Unexpected Telr response structure:', telrResponse.data);
-        throw new Error('Failed to get redirect URL from Telr');
-      }
-    } catch (telrError) {
-      console.error('[create-checkout-session] Telr API request failed:', telrError.response?.data || telrError.message);
-      throw new Error(`Telr API request failed: ${telrError.message}`);
+      res.json({
+        redirectUrl: telrResponse.data.order.url,
+        telrRef: orderRef,
+        sessionId: sessionId
+      });
+    } else {
+      throw new Error('Failed to get redirect URL from Telr');
     }
   } catch (error) {
-    console.error('[create-checkout-session] Error creating Telr checkout session:', error.message);
+    console.error('[create-checkout-session] Error:', error.message);
     res.status(500).json({ 
-      error: 'Failed to create Telr checkout session',
-      details: error.message,
-      telrStoreId: TELR_STORE_ID ? 'Present' : 'Missing',
-      telrAuthKey: TELR_AUTH_KEY ? 'Present' : 'Missing'
+      error: 'Failed to create checkout session',
+      details: error.message
     });
   }
 });
 
-// Record attendance
-app.post('/api/record-attendance', async (req, res) => {
+// Payment success handler
+app.get('/payment/success', async (req, res) => {
   try {
-    const { sessionId, attended } = req.body;
+    const sessionId = req.query.session_id;
+    let orderRef = req.query.order_ref; // Try to get orderRef from query
 
-    console.log('[record-attendance] Received request:', { sessionId, attended });
+    console.log('[payment/success] Processing successful payment:', { sessionId, orderRef });
 
     if (!sessionId) {
-      console.error('[record-attendance] Invalid session ID:', sessionId);
-      return res.status(400).json({ error: 'Invalid session ID provided' });
+      console.error('[payment/success] Missing session_id');
+      return res.redirect(`${FRONTEND_URL}/registration.php?error=missing_reference`);
     }
 
-    const telrParams = {
-      ivp_method: 'check',
-      ivp_store: TELR_STORE_ID,
-      ivp_authkey: TELR_AUTH_KEY,
-      order_ref: sessionId
-    };
-
-    console.log('[record-attendance] Verifying Telr transaction with params:', telrParams);
-
-    const telrVerifyResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Expect': ''
+    // If orderRef is missing from query, try to find it from metadata files
+    if (!orderRef) {
+      console.log('[payment/success] orderRef missing from query, searching metadata files...');
+      const metadataDir = path.join(__dirname, 'telr_transactions');
+      if (fs.existsSync(metadataDir)) {
+        const files = fs.readdirSync(metadataDir);
+        for (const file of files) {
+          if (file.endsWith('_metadata.json')) {
+            const filePath = path.join(metadataDir, file);
+            try {
+              const metadataContent = fs.readFileSync(filePath, 'utf8');
+              const metadata = JSON.parse(metadataContent);
+              if (metadata.sessionId === sessionId) {
+                orderRef = file.replace('_metadata.json', ''); // Extract orderRef from filename
+                console.log(`[payment/success] Found orderRef ${orderRef} for sessionId ${sessionId} from metadata.`);
+                break; // Found it, no need to search further
+              }
+            } catch (readError) {
+              console.error(`[payment/success] Error reading or parsing metadata file ${file}:`, readError);
+            }
+          }
+        }
       }
-    });
-
-    console.log('[record-attendance] Telr verification response:', telrVerifyResponse.data);
-
-    if (!telrVerifyResponse.data || !telrVerifyResponse.data.order) {
-      console.error('[record-attendance] Telr transaction details not found for session ID:', sessionId);
-      return res.status(404).json({ error: 'Telr transaction details not found' });
     }
 
-    const telrOrder = telrVerifyResponse.data.order;
-    
-    const metadataPath = path.join(__dirname, 'telr_transactions', `${sessionId}_metadata.json`);
-    let metadata = { chapter: 'N/A', plan: 'N/A' };
+    if (!orderRef) {
+      console.error('[payment/success] Could not determine orderRef for sessionId:', sessionId);
+      return res.redirect(`${FRONTEND_URL}/registration.php?error=order_ref_not_found`);
+    }
+
+    // Load metadata (now we have orderRef)
+    const metadataPath = path.join(__dirname, 'telr_transactions', `${orderRef}_metadata.json`);
+    let metadata = {};
     
     if (fs.existsSync(metadataPath)) {
       metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    } else {
+      console.warn(`[payment/success] Metadata file not found for orderRef: ${orderRef}`);
+      // This might happen if the metadata was not saved correctly, or if the orderRef was inferred.
+      // Proceed with caution, some metadata fields might be missing.
     }
 
-    const userData = {
-      sessionId: sessionId,
-      name: telrOrder.customer?.name?.forenames || metadata.name || 'N/A',
-      email: telrOrder.customer?.email || metadata.email || 'N/A',
-      phone: telrOrder.customer?.address?.mobile || metadata.phone || 'N/A',
-      chapter: metadata.chapter || 'N/A',
-      plan: metadata.plan || 'N/A',
-      paymentAmount: telrOrder.amount || metadata.amount || '0',
-      paymentCurrency: telrOrder.currency ? telrOrder.currency.toUpperCase() : metadata.currency || 'AED',
-      transactionId: telrOrder.transaction?.ref || sessionId,
-      dateRegistered: new Date().toISOString()
-    };
-
-    const filePath = path.join(__dirname, attended ? 'attendance_present.csv' : 'attendance_absent.csv');
-    
-    try {
-      const csvContent = fs.readFileSync(filePath, 'utf8');
-      const lines = csvContent.split('\n');
-      const header = lines[0];
-      const dataLines = lines.slice(1).filter(line => line.trim() !== '');
-
-      const newLine = `${userData.sessionId},${userData.name},${userData.email},${userData.phone},${userData.chapter},${userData.plan},${userData.paymentAmount},${userData.paymentCurrency},${userData.transactionId},${userData.dateRegistered},,`;
-      dataLines.push(newLine);
-
-      fs.writeFileSync(filePath, header + '\n' + dataLines.join('\n') + '\n');
-
-      res.json({ success: true });
-    } catch (fileError) {
-      console.error('[record-attendance] Error reading/writing CSV file:', fileError);
-      res.status(500).json({ 
-        error: 'Failed to process attendance record',
-        details: fileError.message 
-      });
-    }
-  } catch (error) {
-    console.error('[record-attendance] Error recording attendance:', error);
-    res.status(500).json({ 
-      error: 'Failed to record attendance',
-      details: error.message 
-    });
-  }
-});
-
-// Free registration
-app.post('/api/register-free', async (req, res) => {
-  try {
-    const { name, email, phone, chapter, plan, noShowConsent } = req.body;
-
-    console.log('[register-free] Received request:', { name, email, chapter, plan });
-
-    if (!name || !email || !chapter || !plan) {
-      console.error('[register-free] Missing required fields:', { name, email, chapter, plan });
-      return res.status(400).json({ error: 'Missing required fields for free registration' });
-    }
-
-    const userData = {
-      sessionId: `FREE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      name: name,
-      email: email,
-      phone: phone || 'N/A',
-      chapter: chapter,
-      plan: plan,
-      paymentAmount: 0,
-      paymentCurrency: 'AED',
-      transactionId: 'FREE_REGISTRATION',
-      dateRegistered: new Date().toISOString(),
-      penaltyAmount: noShowConsent ? 3699 : 0,
-      penaltyStatus: noShowConsent ? 'Pending' : 'N/A'
-    };
-
-    const filePath = path.join(__dirname, 'attendance_present.csv');
-    
-    try {
-      const csvContent = fs.readFileSync(filePath, 'utf8');
-      const lines = csvContent.split('\n');
-      const header = lines[0];
-      const dataLines = lines.slice(1).filter(line => line.trim() !== '');
-
-      const newLine = `${userData.sessionId},${userData.name},${userData.email},${userData.phone},${userData.chapter},${userData.plan},${userData.paymentAmount},${userData.paymentCurrency},${userData.transactionId},${userData.dateRegistered},${userData.penaltyAmount},${userData.penaltyStatus}`;
-      dataLines.push(newLine);
-
-      fs.writeFileSync(filePath, header + '\n' + dataLines.join('\n') + '\n');
-
-      const qrCodeData = JSON.stringify({
-        sessionId: userData.sessionId,
-        name: userData.name,
-        email: userData.email,
-        plan: userData.plan,
-      });
-
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=200x200`;
-
-      const emailHtml = `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #2c3e50; text-align: center;">Your SYNAPSE Event QR Code</h1>
-              <p>Dear ${userData.name},</p>
-              <p>Thank you for registering for the SYNAPSE event! Your <strong>${userData.plan}</strong> pass is confirmed.</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <img src="${qrCodeUrl}" alt="QR Code" style="border: 1px solid #ddd; padding: 10px;" />
-              </div>
-              <p>Please present this QR code at the event entrance.</p>
-              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-              <p style="font-size: 12px; color: #666;">Session ID: ${userData.sessionId}</p>
-            </div>
-          </body>
-        </html>
-      `;
-
-      const emailResult = await resend.emails.send({
-        from: fromEmail,
-        to: [userData.email],
-        subject: 'Your SYNAPSE Event QR Code (Free Registration)',
-        html: emailHtml,
-      });
-
-      if (emailResult.error) {
-        console.error('[register-free] Email sending failed:', emailResult.error);
-      } else {
-        console.log('[register-free] QR code email sent successfully for free registration.');
-      }
-
-      res.json({ success: true, message: 'Free registration successful', sessionId: userData.sessionId });
-    } catch (fileError) {
-      console.error('[register-free] Error reading/writing CSV file:', fileError);
-      res.status(500).json({ 
-        error: 'Failed to process free registration',
-        details: fileError.message 
-      });
-    }
-  } catch (error) {
-    console.error('[register-free] Error processing free registration:', error);
-    res.status(500).json({ 
-      error: 'Failed to process free registration',
-      details: error.message 
-    });
-  }
-});
-
-// Telr webhook
-app.post('/api/telr-webhook', async (req, res) => {
-  console.log('[telr-webhook] Received webhook:', req.body);
-
-  try {
-    const order_ref = req.body.order_ref || req.body.ref;
-
-    if (!order_ref) {
-      console.error('[telr-webhook] Missing order_ref in webhook payload.');
-      return res.status(400).json({ error: 'Missing transaction reference' });
-    }
-
+    // Verify transaction with Telr
     const telrParams = {
       ivp_method: 'check',
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
-      order_ref: order_ref
+      order_ref: orderRef
     };
 
-    console.log('[telr-webhook] Verifying Telr transaction with params:', telrParams);
-
-    const telrVerifyResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
+    const telrResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Expect': ''
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
 
-    console.log('[telr-webhook] Telr verification response:', telrVerifyResponse.data);
+    const telrOrder = telrResponse.data.order;
 
-    const telrOrder = telrVerifyResponse.data.order;
+    if (telrOrder && telrOrder.status && (telrOrder.status.code === 3 || telrOrder.status.code === 2)) {
+      // Payment successful - extract card token
+      const cardToken = telrOrder.token || null;
+      
+      // Prepare registration data
+      const registrationData = {
+        sessionId: metadata.sessionId || sessionId,
+        name: metadata.name || telrOrder.customer?.name?.forenames || 'N/A',
+        email: metadata.email || telrOrder.customer?.email || 'N/A',
+        phone: metadata.phone || telrOrder.customer?.address?.mobile || 'N/A',
+        chapter: metadata.chapter || 'N/A',
+        plan: metadata.plan || 'regular',
+        paymentAmount: telrOrder.amount || metadata.amount || '0',
+        paymentCurrency: telrOrder.currency || metadata.currency || 'AED',
+        transactionId: telrOrder.transaction?.ref || orderRef,
+        telrCardToken: cardToken,
+        noShowConsent: metadata.noShowConsent || false,
+        penaltyAmount: metadata.penaltyAmount || 0,
+        registrationStatus: 'completed'
+      };
 
-    if (!telrOrder) {
-      console.error('[telr-webhook] Failed to retrieve transaction details for:', order_ref);
-      return res.status(404).json({ error: 'Transaction details not found' });
-    }
+      // Save to CSV
+      saveRegistrationToCSV(registrationData);
 
-    if (telrOrder.status && telrOrder.status.code === 3) {
-      await saveTelrTransaction(telrOrder);
-      console.log('[telr-webhook] Transaction saved successfully:', order_ref);
+      // Send QR code email
+      await sendQRCodeEmail(registrationData);
+
+      // Process refund for EO Dubai members/spouses (AED 1)
+      if (metadata.requiresRefund) {
+        console.log('[payment/success] Initiating refund for EO Dubai member/spouse');
+        const refundResult = await processRefund(orderRef, '1.00');
+        
+        if (refundResult.success) {
+          console.log('[payment/success] Refund processed successfully');
+        } else {
+          console.error('[payment/success] Refund failed:', refundResult.error);
+          // Note: Registration is still valid, but log for manual refund
+        }
+      }
+
+      // Redirect to thank you page
+      res.redirect(`${FRONTEND_URL}/thanks.php?session_id=${metadata.sessionId || sessionId}`);
     } else {
-      console.warn('[telr-webhook] Transaction not successful, not saving:', telrOrder.status?.code);
+      console.error('[payment/success] Payment not successful:', telrOrder.status);
+      res.redirect(`${FRONTEND_URL}/registration.php?error=payment_failed`);
     }
-
-    res.json({ success: true, message: 'Webhook processed successfully' });
   } catch (error) {
-    console.error('[telr-webhook] Error processing webhook:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to process webhook', details: error.message });
+    console.error('[payment/success] Error:', error);
+    res.redirect(`${FRONTEND_URL}/registration.php?error=processing_failed`);
   }
 });
 
-
 // Payment failure redirect
 app.get('/payment/fail', (req, res) => {
-  console.log('[payment/fail] Received redirect from Telr:', req.query);
-  const orderRef = req.query.order_ref || req.query.ref;
-  res.redirect(`${FRONTEND_URL}/registration.php?declined=true&telr_ref=${orderRef || 'unknown'}`);
+  console.log('[payment/fail] Payment declined:', req.query);
+  const sessionId = req.query.session_id;
+  res.redirect(`${FRONTEND_URL}/registration.php?declined=true&session_id=${sessionId || 'unknown'}`);
 });
 
 // Payment cancellation redirect
 app.get('/payment/cancel', (req, res) => {
-  console.log('[payment/cancel] Received redirect from Telr:', req.query);
-  const orderRef = req.query.order_ref || req.query.ref;
-  res.redirect(`${FRONTEND_URL}/registration.php?cancelled=true&telr_ref=${orderRef || 'unknown'}`);
+  console.log('[payment/cancel] Payment cancelled:', req.query);
+  const sessionId = req.query.session_id;
+  res.redirect(`${FRONTEND_URL}/registration.php?cancelled=true&session_id=${sessionId || 'unknown'}`);
+});
+
+// Charge penalty for no-show
+app.post('/api/charge-penalty', async (req, res) => {
+  try {
+    const { sessionId, notes } = req.body;
+
+    console.log('[charge-penalty] Processing penalty for sessionId:', sessionId);
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'Session ID is required' });
+    }
+
+    // Find registration in CSV
+    const registrationsFile = path.join(__dirname, 'registrations.csv');
+    const csvContent = fs.readFileSync(registrationsFile, 'utf8');
+    const lines = csvContent.split('\n');
+    
+    let registrationFound = null;
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].includes(sessionId)) {
+        const fields = lines[i].split(',');
+        registrationFound = {
+          sessionId: fields[1],
+          name: fields[2].replace(/"/g, ''),
+          email: fields[3],
+          chapter: fields[5],
+          originalTransactionId: fields[9],
+          telrCardToken: fields[10],
+          noShowConsent: fields[11] === 'true',
+          penaltyAmount: parseFloat(fields[12]) || 0
+        };
+        break;
+      }
+    }
+
+    if (!registrationFound) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    if (!registrationFound.noShowConsent) {
+      return res.status(400).json({ error: 'No penalty consent found for this registration' });
+    }
+
+    if (!registrationFound.telrCardToken || registrationFound.telrCardToken === 'N/A') {
+      return res.status(400).json({ error: 'No card token found for charging penalty' });
+    }
+
+    // Charge penalty using stored card token
+    const penaltyParams = {
+      ivp_method: 'create',
+      ivp_store: TELR_STORE_ID,
+      ivp_authkey: TELR_AUTH_KEY,
+      ivp_cart: `PENALTY-${sessionId}-${Date.now()}`,
+      ivp_test: isProduction ? '0' : '1',
+      ivp_amount: registrationFound.penaltyAmount.toFixed(2),
+      ivp_currency: 'AED',
+      ivp_desc: `No-Show Penalty - ${sessionId}`,
+      ivp_token: registrationFound.telrCardToken,
+      bill_email: registrationFound.email
+    };
+
+    console.log('[charge-penalty] Charging penalty with params:', penaltyParams);
+
+    const telrResponse = await axios.post(TELR_API_URL, querystring.stringify(penaltyParams), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      timeout: 30000
+    });
+
+    console.log('[charge-penalty] Telr response:', telrResponse.data);
+
+    if (telrResponse.data && telrResponse.data.order) {
+      const penaltyTransactionId = telrResponse.data.order.ref;
+      
+      // Save penalty record
+      const penaltyData = {
+        sessionId: registrationFound.sessionId,
+        name: registrationFound.name,
+        email: registrationFound.email,
+        originalTransactionId: registrationFound.originalTransactionId,
+        penaltyAmount: registrationFound.penaltyAmount,
+        penaltyStatus: 'charged',
+        penaltyTransactionId: penaltyTransactionId,
+        notes: notes || 'No-show penalty charged'
+      };
+
+      savePenaltyToCSV(penaltyData);
+
+      res.json({ 
+        success: true, 
+        message: 'Penalty charged successfully',
+        transactionId: penaltyTransactionId
+      });
+    } else {
+      throw new Error('Failed to charge penalty');
+    }
+  } catch (error) {
+    console.error('[charge-penalty] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to charge penalty',
+      details: error.message 
+    });
+  }
+});
+
+// Get registrations (for admin)
+app.get('/api/registrations', (req, res) => {
+  try {
+    const registrationsFile = path.join(__dirname, 'registrations.csv');
+    
+    if (!fs.existsSync(registrationsFile)) {
+      return res.json({ registrations: [] });
+    }
+
+    const csvContent = fs.readFileSync(registrationsFile, 'utf8');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=registrations.csv');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('[api/registrations] Error:', error);
+    res.status(500).json({ error: 'Failed to retrieve registrations' });
+  }
+});
+
+// Get penalty records (for admin)
+app.get('/api/penalties', (req, res) => {
+  try {
+    const penaltiesFile = path.join(__dirname, 'penalty_records.csv');
+    
+    if (!fs.existsSync(penaltiesFile)) {
+      return res.json({ penalties: [] });
+    }
+
+    const csvContent = fs.readFileSync(penaltiesFile, 'utf8');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=penalty_records.csv');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('[api/penalties] Error:', error);
+    res.status(500).json({ error: 'Failed to retrieve penalties' });
+  }
 });
 
 // Health check
@@ -560,158 +635,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Email test
-app.get('/api/email-test', async (req, res) => {
-  try {
-    console.log('[email-test] Starting email test');
-    console.log('[email-test] FROM_EMAIL:', fromEmail);
-    console.log('[email-test] RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'Present' : 'Missing');
-    
-    const { toEmail } = req.query;
-    if (!toEmail) {
-      console.error('[email-test] toEmail query parameter is required');
-      return res.status(400).json({ success: false, error: 'toEmail query parameter is required' });
-    }
-
-    const result = await resend.emails.send({
-      from: fromEmail,
-      to: [toEmail],
-      subject: 'Test Email from SYNAPSE',
-      html: `
-        <h1>Test Email Success!</h1>
-        <p>If you receive this, your email configuration is working.</p>
-        <p>From: ${fromEmail}</p>
-        <p>Environment: ${process.env.NODE_ENV || 'development'}</p>
-      `,
-    });
-
-    console.log('[email-test] Email result:', result);
-    
-    if (result.error) {
-      console.error('[email-test] Resend error:', result.error);
-      return res.status(500).json({ 
-        success: false, 
-        error: result.error 
-      });
-    }
-
-    res.json({ 
-      success: true, 
-      result: result,
-      message: 'Email sent successfully!' 
-    });
-  } catch (error) {
-    console.error('[email-test] Error sending test email:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-// Send confirmation email
-app.post('/api/send-confirmation-email', async (req, res) => {
-  try {
-    const { sessionId } = req.body;
-
-    if (!sessionId) {
-      console.error('[send-confirmation-email] Session ID is required');
-      return res.status(400).json({ error: 'Session ID is required' });
-    }
-
-    console.log(`[send-confirmation-email] Received request for Telr order ID: ${sessionId}`);
-    
-    const telrParams = {
-      ivp_method: 'check',
-      ivp_store: TELR_STORE_ID,
-      ivp_authkey: TELR_AUTH_KEY,
-      order_ref: sessionId
-    };
-
-    console.log('[send-confirmation-email] Verifying Telr transaction with params:', telrParams);
-
-    const telrVerifyResponse = await axios.post(TELR_API_URL, querystring.stringify(telrParams), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Expect': ''
-      }
-    });
-
-    console.log('[send-confirmation-email] Telr verification response:', telrVerifyResponse.data);
-
-    if (!telrVerifyResponse.data || !telrVerifyResponse.data.order) {
-      console.error('[send-confirmation-email] Telr transaction details not found for order ID:', sessionId);
-      return res.status(404).json({ error: 'Telr transaction details not found' });
-    }
-
-    const telrOrder = telrVerifyResponse.data.order;
-    
-    const metadataPath = path.join(__dirname, 'telr_transactions', `${sessionId}_metadata.json`);
-    let metadata = {};
-    
-    if (fs.existsSync(metadataPath)) {
-      metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    }
-
-    if (telrOrder.status && telrOrder.status.code === 3) {
-      console.log(`[send-confirmation-email] Payment status is 'paid'. Proceeding to send email.`);
-      
-      const customerName = metadata.name || telrOrder.customer?.name?.forenames || 'Guest';
-      const customerEmail = metadata.email || telrOrder.customer?.email;
-      const customerPlan = metadata.plan || 'regular';
-      
-      const qrCodeData = JSON.stringify({
-        sessionId: sessionId,
-        name: customerName,
-        email: customerEmail,
-        plan: customerPlan,
-      });
-
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=200x200`;
-
-      const emailHtml = `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #2c3e50; text-align: center;">Your SYNAPSE Event QR Code</h1>
-              <p>Dear ${customerName},</p>
-              <p>Thank you for registering for the SYNAPSE event! Your <strong>${customerPlan}</strong> pass is confirmed.</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <img src="${qrCodeUrl}" alt="QR Code" style="border: 1px solid #ddd; padding: 10px;" />
-              </div>
-              <p>Please present this QR code at the event entrance.</p>
-              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-              <p style="font-size: 12px; color: #666;">Session ID: ${sessionId}</p>
-            </div>
-          </body>
-        </html>
-      `;
-
-      const result = await resend.emails.send({
-        from: fromEmail,
-        to: [customerEmail],
-        subject: 'Your SYNAPSE Event QR Code',
-        html: emailHtml,
-      });
-
-      if (result.error) {
-        console.error('[send-confirmation-email] Email sending failed:', result.error);
-        return res.status(500).json({ error: 'Failed to send email' });
-      }
-
-      console.log('[send-confirmation-email] QR code email sent successfully.');
-      res.json({ success: true, message: 'Email sent successfully' });
-    } else {
-      console.warn(`[send-confirmation-email] Payment not successful for Telr order ID ${sessionId}. Telr status: ${telrOrder.status?.code}. Email not sent.`);
-      res.status(400).json({ error: 'Payment not successful', statusCode: telrOrder.status?.code });
-    }
-  } catch (error) {
-    console.error('[send-confirmation-email] Error sending confirmation email:', error);
-    res.status(500).json({ error: 'Failed to send confirmation email', details: error.message });
-  }
-});
-
-// Mount verify-user router after specific routes
+// Mount verify-user router
 app.use('/api', verifyUserRouter);
 
 // Error handling middleware
