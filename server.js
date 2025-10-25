@@ -453,8 +453,8 @@ app.get('/payment/success', async (req, res) => {
         }
       }
 
-      // Redirect to thank you page
-      const redirectUrl = `${FRONTEND_URL}/thanks.php?session_id=${metadata.sessionId || sessionId}`;
+      // Redirect to thank you page using a URL fragment to avoid mod_security issues
+      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${metadata.sessionId || sessionId}`;
       res.redirect(302, redirectUrl);
     } else {
       console.error('[payment/success] Payment not successful:', telrOrder.status);
