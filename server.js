@@ -240,7 +240,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
     const backendUrl = isProduction 
-      ? 'https://eodubai.com/ai-for-business/backend' 
+      ? 'https://backend-production-c14ce.up.railway.app' 
       : `http://localhost:${PORT}`;
 
     // Generate unique session ID
