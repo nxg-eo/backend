@@ -8,6 +8,8 @@ const axios = require('axios');
 const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
+const csv = require('csv-parser'); // Import csv-parser
+const { writeToSheet } = require('./googleSheets'); // Import the helper function
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -216,6 +218,47 @@ async function processRefund(orderRef, amount = '1.00') {
   }
 }
 
+const MEMBERSHIP_DB_PATH = path.join(__dirname, 'EO Dubai Database.csv');
+
+async function isMemberInDatabase(email, phone) {
+  return new Promise((resolve, reject) => {
+    const members = [];
+    fs.createReadStream(MEMBERSHIP_DB_PATH)
+      .pipe(csv())
+      .on('data', (row) => {
+        members.push(row);
+      })
+      .on('end', () => {
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
+
+        for (const member of members) {
+          const memberType = member['Member Type']?.trim();
+          const memberEmail = member['Email ID']?.toLowerCase().trim();
+          const memberPhone = member['Mobile'] ? member['Mobile'].replace(/\D/g, '') : '';
+
+          const isTargetMemberType = ['EO Dubai Member', 'EO Dubai Spouse', 'EO Dubai Accelerator'].includes(memberType);
+
+          if (isTargetMemberType) {
+            if (memberEmail === normalizedEmail) {
+              console.log(`[isMemberInDatabase] Matched email for ${memberType}: ${email}`);
+              return resolve(true);
+            }
+            if (normalizedPhone && memberPhone === normalizedPhone) {
+              console.log(`[isMemberInDatabase] Matched phone for ${memberType}: ${phone}`);
+              return resolve(true);
+            }
+          }
+        }
+        resolve(false);
+      })
+      .on('error', (error) => {
+        console.error('[isMemberInDatabase] Error reading membership database:', error);
+        reject(error);
+      });
+  });
+}
+
 ensureCSVFiles();
 
 // Create Telr checkout session
@@ -274,6 +317,19 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       // Enable card tokenization for future charges
       ivp_create_token: '1'
     };
+
+    const isMember = await isMemberInDatabase(email, phone);
+
+    const isVerifyTransaction = (
+      isMember && amountInDecimal === '1.00'
+    );
+
+    if (isVerifyTransaction) {
+      telrParams.ivp_type = 'verify';
+      telrParams.ivp_amount = '1.00'; // Ensure amount is 1.00 for verify transactions
+      telrParams.ivp_desc = 'Card Verification AED 1 (Refundable)';
+      console.log('[create-checkout-session] Initiating Telr "verify" transaction for AED 1.');
+    }
 
     if (phone) {
       telrParams.bill_phone = phone;
@@ -419,6 +475,7 @@ app.get('/payment/success', async (req, res) => {
       
       // Prepare registration data
       const registrationData = {
+        timestamp: new Date().toISOString(), // Add timestamp
         sessionId: metadata.sessionId || sessionId,
         name: metadata.name || telrOrder.customer?.name?.forenames || 'N/A',
         email: metadata.email || telrOrder.customer?.email || 'N/A',
@@ -436,6 +493,9 @@ app.get('/payment/success', async (req, res) => {
 
       // Save to CSV
       saveRegistrationToCSV(registrationData);
+
+      // Write to Google Sheet
+      await writeToSheet(registrationData);
 
       // Send QR code email
       await sendQRCodeEmail(registrationData);

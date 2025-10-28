@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "eo-payments-tracking",
+  "private_key_id": "94a63ba12b440b1d43406f38babf776147375d95",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC/aVI8LF8FXhIy\nJ1Lce3Fec/RUJprMUznDVsbrZqwb0awI9vHTAeAANyyr5YrU51YVkQxCj7x66ab5\nyymnjMb6w9tV/2Y1DWwhAZqyXxkvSe8dBZ9DYciNSgTOk7o9jRRdhKEs+JykNeTC\nV++khkMtWrM3BhjdAGOSxtSYhJOw7bd929+Gzs1apT6rHTsYoWxWkfHiWDxDUVeo\nmN9T6lc3tXFnUk0JzbnNoieDAFZWPKDwDEkdB9AIG8shV001gs/IJ6ImfIBGrr7h\nFFQbkBVkvzjHCDcMLx8lgSY8ctyz9VfPWbWq4CXczwcXhx42H1xnCQ2qG1zN77tV\nJkn6/fMJAgMBAAECggEALTKuPbG/jUmpk8i31wLaIhLQ5KcKAgn7942P4qmnpdkE\nnchMEYadkYd1x7Bn8D6hE+4gfj4pJD/0kwL/dsY1/SRO8Fdi18+v0vppQEnW7VTw\nvsJjWVqna/+Is4vsHBkqcCu/kFozSM5GEoMHviqLBdRnQayxpcvv90p2jH4vzsTm\nHVcoNa58AZdgoLWJehUK4tIGk59JpQSq3B8f5tr5csuU+GWgTnCudlbOsb3e7ONI\n8zj14B1GqcB79+PLCrJT0fjXey9us3dnf1lVcUdWeKicOhEPKR5vhJtLbw2ZcPB2\nG9S7NTRvI0U2KX6kRD8jmM/b29rvwN9D2deDzW67NQKBgQD2W8988vznI+RIe0kX\nO0iDogmKvYFkrZtKu3udqIDx7zOv5heXPsBOmKj960ja1NyyZlxcP5YAz58wUc9r\n94L8qQtuChjx0xexbm6QoWLrzo/kylHzokm89l5jRS6ewFOg/tdc/K0Vr7K73SN1\nUolb6Ashbw7j1EJ0n75VYm7L3QKBgQDG5wMGebAREOszDb6B9OdP14rdhRghkgZ3\nP6dP2upo+M3r79CMk4o7382966kpf+x8+i+ug9KlGUbbxntYiwT5KQhz2U9wPxtq\nBiTErcnlEDjVas9t1pQ2DVNv9kkvJkyKNxAsWxRATJoMGSvFQuW6KHEo0X1wllat\nKs+L7qAXHQKBgAPEP5XfeTJngBQDnoh2ZZNtpMu0Pgg2B0vLNgahDuekCpxD3lR3\npyUMfHj1YfXGj2FC42KdrkNw6TQp7AvwitYmF4ClMuBvo8sYryQS85o7XEPZPAuH\nja0P7z2BT0cqFZ0+iDhpvJO6TfdFWEdw7Zy0HYdzVTzyf9mcn6JakOsZAoGAAvr3\nKqOsJbVRMOSl1CCtTp72L7eM0wPzINpNUX8AQC5qN3zSbSjQy3DhDlV3pW2LR5wg\nFsdW4q5sR2LD+mGq42jf/YxmClKHwKDy8BeCjPIfR+Nf1E+AzQaKF4VjN1elkfSd\nQ2zh8syzCjdeVohYFOACQhBRhtxZ1CJuFbSvpWkCgYA06TLeiXhcFIoXx/Z9lw72\n937ED0OsE5tF6gNFqWc5iv6E46vSjPi0Qe8yu2aRbEw3BAm8nk9WbhDeHakekJaR\nuvOXg92V9rUCoCAVoCYAEUqcNI4MHQPE0V1wIjeVN41Ho1BFeYKJo0QGFoxOiqH4\nBs97eXapnS5MzP0CSTnxIA==\n-----END PRIVATE KEY-----\n",
+  "client_email": "sheets-writer@eo-payments-tracking.iam.gserviceaccount.com",
+  "client_id": "117938413595238553981",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sheets-writer%40eo-payments-tracking.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
