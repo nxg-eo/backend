@@ -262,16 +262,54 @@ async function isMemberInDatabase(email, phone) {
 ensureCSVFiles();
 
 // Create Telr checkout session
-app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => {
-  try {
-    const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
+    app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => {
+      try {
+        const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
-    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
+        console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
-    // Validate inputs
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount provided' });
-    }
+        // Generate unique session ID
+        const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+        // Handle free registrations (amount === 0)
+        if (parseFloat(amount) === 0) {
+          console.log('DEBUG: Free registration. Bypassing Telr checkout.');
+
+          const registrationData = {
+            timestamp: new Date().toISOString(),
+            sessionId: sessionId,
+            name: name || 'N/A',
+            email: email || 'N/A',
+            phone: phone || 'N/A',
+            chapter: chapter || 'N/A',
+            plan: plan || 'regular',
+            paymentAmount: '0.00',
+            paymentCurrency: currency ? currency.toUpperCase() : 'AED',
+            transactionId: 'FREE_REGISTRATION',
+            telrCardToken: 'N/A',
+            noShowConsent: noShowConsent || false,
+            penaltyAmount: 0,
+            registrationStatus: 'completed'
+          };
+
+          // Save to CSV
+          saveRegistrationToCSV(registrationData);
+
+          // Write to Google Sheet
+          await writeToSheet(registrationData);
+
+          // Send QR code email
+          await sendQRCodeEmail(registrationData);
+
+          // Redirect to thank you page
+          const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
+          return res.redirect(302, redirectUrl);
+        }
+
+        // Validate inputs for paid registrations
+        if (!amount || isNaN(amount) || amount <= 0) {
+          return res.status(400).json({ error: 'Invalid amount provided' });
+        }
 
     if (!currency || typeof currency !== 'string') {
       return res.status(400).json({ error: 'Invalid currency provided' });
@@ -285,9 +323,6 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
     const backendUrl = isProduction 
       ? 'https://backend-production-c14ce.up.railway.app' 
       : `http://localhost:${PORT}`;
-
-    // Generate unique session ID
-    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     // Split name
     const nameParts = name.trim().split(' ');
