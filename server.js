@@ -98,6 +98,9 @@ function savePenaltyToCSV(penaltyData) {
 // Generate QR Code and send email
 async function sendQRCodeEmail(registrationData) {
   try {
+    console.log('[sendQRCodeEmail] Attempting to send QR code email for:', registrationData.email);
+    console.log('[sendQRCodeEmail] Registration Data:', JSON.stringify(registrationData, null, 2));
+
     const qrCodeData = JSON.stringify({
       sessionId: registrationData.sessionId,
       name: registrationData.name,
@@ -107,6 +110,7 @@ async function sendQRCodeEmail(registrationData) {
     });
 
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
+    console.log('[sendQRCodeEmail] Generated QR Code URL:', qrCodeUrl);
 
     const emailHtml = `
       <html>
@@ -180,6 +184,7 @@ async function sendQRCodeEmail(registrationData) {
     }
 
     console.log('[sendQRCodeEmail] QR code email sent successfully to:', registrationData.email);
+    console.log('[sendQRCodeEmail] Resend API result:', result);
     return { success: true, messageId: result.id };
   } catch (error) {
     console.error('[sendQRCodeEmail] Error sending email:', error);
