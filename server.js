@@ -323,9 +323,9 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
-      bill_country: 'AE',
-      // Enable card tokenization for future charges
-      ivp_create_token: '1'
+      bill_country: 'AE'
+      // Temporarily disabled ivp_create_token to debug Telr E01:Invalid request
+      // ivp_create_token: '1'
     };
 
     const isMember = await isMemberInDatabase(email, phone);
