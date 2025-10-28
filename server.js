@@ -112,64 +112,18 @@ async function sendQRCodeEmail(registrationData) {
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
     console.log('[sendQRCodeEmail] Generated QR Code URL:', qrCodeUrl);
 
-    const emailHtml = `
-      <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0;">AI FOR BUSINESS</h1>
-            <p style="color: white; margin: 10px 0 0 0;">23-24 January 2026</p>
-          </div>
-          
-          <div style="padding: 30px; background: #f9f9f9;">
-            <h2 style="color: #333; margin-top: 0;">Registration Confirmed!</h2>
-            <p>Dear ${registrationData.name},</p>
-            <p>Thank you for registering for the <strong>AI FOR BUSINESS Workshop</strong> hosted by EO Dubai.</p>
-            
-            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-              <h3 style="color: #667eea; margin-top: 0;">Your Event QR Code</h3>
-              <img src="${qrCodeUrl}" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; border-radius: 10px;" />
-              <p style="margin-top: 20px; font-size: 14px; color: #666;">Please present this QR code at the event entrance</p>
-            </div>
-            
-            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0;">
-              <h3 style="color: #667eea; margin-top: 0;">Event Details</h3>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold;">Date:</td>
-                  <td style="padding: 8px 0;">23-24 January 2026</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold;">Venue:</td>
-                  <td style="padding: 8px 0;">Marriott Palm Jumeirah, Dubai</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold;">Chapter:</td>
-                  <td style="padding: 8px 0;">${registrationData.chapter}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold;">Registration ID:</td>
-                  <td style="padding: 8px 0;">${registrationData.sessionId}</td>
-                </tr>
-              </table>
-            </div>
-            
-            ${registrationData.noShowConsent ? `
-            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; border-left: 4px solid #ffc107;">
-              <p style="margin: 0; color: #856404;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED ${registrationData.penaltyAmount} will be charged if you do not attend the event.</p>
-            </div>
-            ` : ''}
-            
-            <p style="margin-top: 30px;">We look forward to seeing you at the event!</p>
-            <p>Best regards,<br><strong>EO Dubai Team</strong></p>
-          </div>
-          
-          <div style="background: #333; padding: 20px; text-align: center; color: white; font-size: 12px;">
-            <p style="margin: 0;">© 2026 EO Dubai. All rights reserved.</p>
-            <p style="margin: 10px 0 0 0;">For support, contact: <a href="mailto:${fromEmail}" style="color: #667eea;">${fromEmail}</a></p>
-          </div>
-        </body>
-      </html>
-    `;
+    const templatePath = path.join(__dirname, 'email-templates', 'qr-code-template.php');
+    let emailHtml = fs.readFileSync(templatePath, 'utf8');
+
+    // Replace placeholders in the template
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$name\); \?>/g, registrationData.name);
+    emailHtml = emailHtml.replace(/<\?php echo \$qrCodeUrl; \?>/g, qrCodeUrl);
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$chapter\); \?>/g, registrationData.chapter);
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$registrationId\); \?>/g, registrationData.sessionId);
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
+    // Remove PHP tags for date and venue, as they are hardcoded in the template now
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$date\); \?>/g, '23-24 January 2026');
+    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$venue\); \?>/g, 'Marriott Palm Jumeirah, Dubai');
 
     const result = await resend.emails.send({
       from: fromEmail,
