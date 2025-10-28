@@ -64,6 +64,7 @@ function findUserInConsolidatedCSV(email, phone) {
           const userPhone = user['Mobile'] ? user['Mobile'].replace(/\D/g, '') : '';
 
           if (userEmail === normalizedEmail || (normalizedPhone && userPhone === normalizedPhone)) {
+            console.log(`[findUserInConsolidatedCSV] Match found for email: ${email}, phone: ${phone}. Member Type from CSV: ${memberType}`);
             return resolve({
               found: true,
               email: userEmail,
@@ -75,6 +76,7 @@ function findUserInConsolidatedCSV(email, phone) {
             });
           }
         }
+        console.log(`[findUserInConsolidatedCSV] No match found for email: ${email}, phone: ${phone}.`);
         resolve({ found: false });
       })
       .on('error', (error) => {
@@ -168,7 +170,9 @@ router.all('/verify-user', async (req, res) => {
       verification_timestamp: new Date().toISOString()
     };
     
-    console.log(`User verification response for ${userInfo.email}:`, response);
+    console.log(`[verify-user route] Input email: ${email_input}, Input phone: ${phone_input}`);
+    console.log(`[verify-user route] Final userInfo:`, userInfo);
+    console.log(`[verify-user route] User verification response for ${userInfo.email}:`, response);
     
     return res.json(response);
     
