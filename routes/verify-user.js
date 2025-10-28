@@ -63,8 +63,13 @@ function findUserInConsolidatedCSV(email, phone) {
           const userEmail = user['Email ID']?.toLowerCase().trim();
           const userPhone = user['Mobile'] ? user['Mobile'].replace(/\D/g, '') : '';
 
+          console.log(`[findUserInConsolidatedCSV] Checking row: Member Type: '${memberType}', Email: '${userEmail}', Phone: '${userPhone}'`);
+          console.log(`[findUserInConsolidatedCSV] Comparing with: Normalized Email: '${normalizedEmail}', Normalized Phone: '${normalizedPhone}'`);
+
           if (userEmail === normalizedEmail || (normalizedPhone && userPhone === normalizedPhone)) {
-            console.log(`[findUserInConsolidatedCSV] Match found for email: ${email}, phone: ${phone}. Member Type from CSV: ${memberType}`);
+            console.log(`[findUserInConsolidatedCSV] Match found for input email: '${email}', input phone: '${phone}'.`);
+            console.log(`[findUserInConsolidatedCSV] Matched user data from CSV:`, user);
+            console.log(`[findUserInConsolidatedCSV] Resolved member_type: '${getMemberTypeDisplay(normalizeMemberType(memberType))}'`);
             return resolve({
               found: true,
               email: userEmail,
@@ -76,7 +81,7 @@ function findUserInConsolidatedCSV(email, phone) {
             });
           }
         }
-        console.log(`[findUserInConsolidatedCSV] No match found for email: ${email}, phone: ${phone}.`);
+        console.log(`[findUserInConsolidatedCSV] No match found for input email: '${email}', input phone: '${phone}'.`);
         resolve({ found: false });
       })
       .on('error', (error) => {
