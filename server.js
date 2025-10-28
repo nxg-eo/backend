@@ -438,6 +438,55 @@ ensureCSVFiles();
   }
 });
 
+// New endpoint for free registrations
+app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
+  try {
+    const { name, email, phone, chapter, noShowConsent, plan } = req.body;
+
+    console.log('[free-registration] Received request:', { name, email, phone, chapter, noShowConsent, plan });
+
+    // Generate unique session ID
+    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    const registrationData = {
+      timestamp: new Date().toISOString(),
+      sessionId: sessionId,
+      name: name || 'N/A',
+      email: email || 'N/A',
+      phone: phone || 'N/A',
+      chapter: chapter || 'N/A',
+      plan: plan || 'regular',
+      paymentAmount: '0.00',
+      paymentCurrency: 'AED',
+      transactionId: 'FREE_REGISTRATION',
+      telrCardToken: 'N/A',
+      noShowConsent: noShowConsent || false,
+      penaltyAmount: 0,
+      registrationStatus: 'completed'
+    };
+
+    // Save to CSV
+    saveRegistrationToCSV(registrationData);
+
+    // Write to Google Sheet
+    await writeToSheet(registrationData);
+
+    // Send QR code email
+    await sendQRCodeEmail(registrationData);
+
+    const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
+    res.json({ success: true, redirectUrl: redirectUrl });
+
+  } catch (error) {
+    console.error('[free-registration] Error:', error.message);
+    res.status(500).json({
+      error: 'Failed to process free registration',
+      details: error.message
+    });
+  }
+});
+
+
 // Payment success handler
 app.get('/payment/success', async (req, res) => {
   try {
