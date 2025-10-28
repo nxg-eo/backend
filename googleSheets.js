@@ -2,12 +2,18 @@ const { google } = require('googleapis');
 const path = require('path');
 
 // Path to your service account JSON key file
-const KEYFILEPATH = path.join(__dirname, '../eo-payments-tracking-94a63ba12b44.json');
+// Path to your service account JSON key file (loaded from environment variable)
+const KEYFILEPATH = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
 
 // Google Sheet ID (from the sheet’s URL)
 const SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
 
 async function writeToSheet(transactionData) {
+  if (!KEYFILEPATH) {
+    console.error('GOOGLE_APPLICATION_CREDENTIALS_PATH environment variable is not set.');
+    throw new Error('Google Sheets credentials path is missing.');
+  }
+
   const auth = new google.auth.GoogleAuth({
     keyFile: KEYFILEPATH,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
