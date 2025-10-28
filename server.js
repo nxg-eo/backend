@@ -277,8 +277,12 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       // Send QR code email
       await sendQRCodeEmail(registrationData);
 
-      // Redirect to thank you page
-      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
+      // Determine redirect URL based on chapter
+      let redirectPage = 'thankyou.php'; // Default for others
+      if (chapter === 'EO Dubai Member' || chapter === 'EO Dubai Spouse') {
+        redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
+      }
+      const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${sessionId}`;
       return res.redirect(302, redirectUrl);
     }
 
@@ -450,7 +454,12 @@ app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
     // Send QR code email
     await sendQRCodeEmail(registrationData);
 
-    const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
+    // Determine redirect URL based on chapter
+    let redirectPage = 'thankyou.php'; // Default for others
+    if (chapter === 'EO Dubai Member' || chapter === 'EO Dubai Spouse') {
+      redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
+    }
+    const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${sessionId}`;
     res.json({ success: true, redirectUrl: redirectUrl });
 
   } catch (error) {
@@ -578,8 +587,13 @@ app.get('/payment/success', async (req, res) => {
         }
       }
 
+      // Determine redirect URL based on chapter from metadata
+      let redirectPage = 'thankyou.php'; // Default for others
+      if (metadata.chapter === 'EO Dubai Member' || metadata.chapter === 'EO Dubai Spouse') {
+        redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
+      }
       // Redirect to thank you page using a URL fragment to avoid mod_security issues
-      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${metadata.sessionId || sessionId}`;
+      const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${metadata.sessionId || sessionId}`;
       res.redirect(302, redirectUrl);
     } else {
       console.error('[payment/success] Payment not successful:', telrOrder.status);
