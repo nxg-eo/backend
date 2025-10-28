@@ -3,60 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your SYNAPSE Event QR Code</title>
+    <title>Registration Confirmed!</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
             padding: 0;
+            color: #333;
         }
-        .card {
+        .container {
             background-color: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             margin: 20px auto;
             max-width: 600px;
             overflow: hidden;
+            padding: 30px;
         }
         .header {
-            background-color: #007bff;
-            color: #ffffff;
-            padding: 20px;
             text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #007bff;
+            font-size: 28px;
+            margin: 0;
         }
         .content {
-            padding: 20px;
-            text-align: center;
+            line-height: 1.6;
+            font-size: 16px;
         }
-        .qr-code {
-            margin: 20px 0;
+        .qr-code-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .qr-code-section img {
+            max-width: 150px;
+            height: auto;
+            border: 1px solid #eee;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .event-details {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .event-details p {
+            margin: 5px 0;
+        }
+        .event-details strong {
+            color: #555;
         }
         .footer {
-            background-color: #f4f4f4;
-            color: #666666;
-            font-size: 12px;
-            padding: 10px;
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            font-size: 14px;
+            color: #777;
             text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="container">
         <div class="header">
-            <h1>SYNAPSE Event Registration</h1>
+            <h1>Registration Confirmed!</h1>
         </div>
         <div class="content">
-            <h2>Welcome, <?php echo htmlspecialchars($name); ?>!</h2>
-            <p>Thank you for registering for the SYNAPSE event. Please present this QR code at the entrance.</p>
-            <div class="qr-code">
+            <p>Dear <?php echo htmlspecialchars($name); ?>,</p>
+            <p>Thank you for registering for the AI FOR BUSINESS Workshop hosted by EO Dubai.</p>
+
+            <div class="qr-code-section">
+                <h3>Your Event QR Code</h3>
                 <img src="<?php echo $qrCodeUrl; ?>" alt="Your QR Code">
+                <p>Please present this QR code at the event entrance</p>
             </div>
-            <p><strong>Plan:</strong> <?php echo htmlspecialchars(ucfirst($plan)); ?> Pass</p>
+
+            <div class="event-details">
+                <h3>Event Details</h3>
+                <p><strong>Date:</strong> 23-24 January 2026</p>
+                <p><strong>Venue:</strong> Marriott Palm Jumeirah, Dubai</p>
+                <p><strong>Chapter:</strong> <?php echo htmlspecialchars($chapter); ?></p>
+                <p><strong>Registration ID:</strong> <?php echo htmlspecialchars($registrationId); ?></p>
+                <p><strong>Important:</strong> As per your agreement, a no-show penalty of AED <?php echo htmlspecialchars(number_format($penaltyAmount, 0, '.', ',')); ?> will be charged if you do not attend the event.</p>
+            </div>
+
+            <p>We look forward to seeing you at the event!</p>
+            <p>Best regards,<br>EO Dubai Team</p>
         </div>
         <div class="footer">
             <p>If you have any questions, please contact our support team.</p>
-            <p><?php printf('&copy; %s SYNAPSE. All rights reserved.', date('Y')); ?></p>
+            <p>&copy; <?php echo date('Y'); ?> EO Dubai. All rights reserved.</p>
         </div>
     </div>
 </body>
