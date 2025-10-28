@@ -6,43 +6,27 @@ const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNA
 const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
 
 async function getAuth() {
-  // Prefer the JSON env
-  const credentialsJson =
-    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
-    (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)
-      ? fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')
-      : null);
-
-  if (!credentialsJson) {
-    throw new Error('Google Sheets credentials are missing.');
-  }
-// Yeah
-  let credentials;
-  try {
-    credentials = JSON.parse(credentialsJson);
-
-    // Fix escaped newlines if present
-    if (credentials.private_key.includes('\\n')) {
-      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
-    }
-
-    console.log('[GoogleSheets] Credentials loaded successfully');
-  } catch (err) {
-    console.error('Error parsing credentials JSON:', err);
-    throw err;
-  }
+  const credentials = {
+    type: "service_account",
+    project_id: process.env.GOOGLE_PROJECT_ID,
+    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+    private_key: process.env.GOOGLE_PRIVATE_KEY,
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    token_uri: "https://oauth2.googleapis.com/token",
+  };
 
   try {
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
-    await auth.getClient();
-    console.log('[GoogleSheets] Authentication successful');
+
+    await auth.getClient(); // test auth
+    console.log('[GoogleSheets] ✅ Authentication successful');
     return auth;
-  } catch (authError) {
-    console.error('[GoogleSheets] Authentication failed:', authError.message);
-    throw new Error('Google Sheets authentication failed: ' + authError.message);
+  } catch (error) {
+    console.error('[GoogleSheets] ❌ Authentication failed:', error.message);
+    throw new Error('Google Sheets authentication failed: ' + error.message);
   }
 }
 
