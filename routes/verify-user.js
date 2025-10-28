@@ -87,7 +87,7 @@ function findUserInConsolidatedCSV(email, phone) {
               phone: user['Mobile'],
               member_type: getMemberTypeDisplay(normalizeMemberType(memberType)),
               original_member_type: normalizeMemberType(memberType),
-              plan: 'regular' // Default plan, will be overridden by pricing logic
+              plan: 'regular'
             });
           }
         }
@@ -121,7 +121,15 @@ router.all('/verify-user', async (req, res) => {
       });
     }
     
-    let userInfo = { found: false, email: email_input, name: '', phone: '', member_type: 'Guest', original_member_type: null, plan: 'regular' };
+    let userInfo = { 
+      found: false, 
+      email: email_input, 
+      name: '', 
+      phone: '', 
+      member_type: 'Guest', 
+      original_member_type: null, 
+      plan: 'regular' 
+    };
     const phone_input = (req.body.phone || req.query.phone || '').trim();
 
     // Check consolidated EO Dubai Database CSV
@@ -145,12 +153,12 @@ router.all('/verify-user', async (req, res) => {
     
     const prices = {
       'EO Dubai Member': { 
-        amount: 1, // AED 1 reversible charge
+        amount: 1,
         penalty: 3999,
         currency: 'AED'
       },
       'EO Dubai Spouse': { 
-        amount: 1, // AED 1 reversible charge
+        amount: 1,
         penalty: 3999,
         currency: 'AED'
       },
@@ -167,7 +175,7 @@ router.all('/verify-user', async (req, res) => {
         currency: 'AED'
       },
       'Guest': { 
-        amount: 5999, // Default for Others/Guest
+        amount: 5999,
         currency: 'AED'
       }
     };
@@ -182,7 +190,14 @@ router.all('/verify-user', async (req, res) => {
       discount_message: discountMessages[userInfo.member_type],
       pricing: prices[userInfo.member_type],
       plan: userInfo.plan,
-      verification_timestamp: new Date().toISOString()
+      verification_timestamp: new Date().toISOString(),
+      // Autopopulate fields for form
+      autopopulate: {
+        name: userInfo.name || '',
+        phone: userInfo.phone || '',
+        member_type: userInfo.member_type || 'Guest',
+        email: userInfo.email
+      }
     };
     
     console.log(`[verify-user route] Input email: ${email_input}, Input phone: ${phone_input}`);
@@ -203,9 +218,6 @@ router.all('/verify-user', async (req, res) => {
 // Additional route to get all member types (for debugging/admin)
 router.get('/member-types', async (req, res) => {
   try {
-    // This route was likely for debugging and used a generic 'members.csv'
-    // It's not directly related to the new database structure for verification.
-    // For now, we can return a static list or adapt it if needed.
     const allMemberTypes = [
       'EO Dubai Member',
       'EO Dubai Spouse',
