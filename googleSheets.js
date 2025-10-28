@@ -1,53 +1,91 @@
 const { google } = require('googleapis');
 const path = require('path');
 
-// Path to your service account JSON key file
-// Path to your service account JSON key file (loaded from environment variable)
-const KEYFILEPATH = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
+// Google Sheet ID for paid registrations
+const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNAaLB1mQ';
+// Google Sheet ID for free registrations
+const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
 
-// Google Sheet ID (from the sheet’s URL)
-const SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
+async function getAuth() {
+  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-async function writeToSheet(transactionData) {
-  if (!KEYFILEPATH) {
-    console.error('GOOGLE_APPLICATION_CREDENTIALS_PATH environment variable is not set.');
-    throw new Error('Google Sheets credentials path is missing.');
+  if (!credentialsJson) {
+    console.error('GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.');
+    throw new Error('Google Sheets credentials are missing.');
+  }
+
+  let credentials;
+  try {
+    credentials = JSON.parse(credentialsJson);
+  } catch (error) {
+    console.error('Error parsing GOOGLE_APPLICATION_CREDENTIALS JSON:', error);
+    throw new Error('Invalid Google Sheets credentials JSON.');
   }
 
   const auth = new google.auth.GoogleAuth({
-    keyFile: KEYFILEPATH,
+    credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+  return auth;
+}
 
+async function writePaidRegistrationToSheet(registrationData) {
+  const auth = await getAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
   const values = [
     [
-      transactionData.timestamp,
-      transactionData.sessionId,
-      transactionData.name,
-      transactionData.email,
-      transactionData.phone,
-      transactionData.chapter,
-      transactionData.plan,
-      transactionData.paymentAmount,
-      transactionData.paymentCurrency,
-      transactionData.transactionId,
-      transactionData.telrCardToken,
-      transactionData.noShowConsent,
-      transactionData.penaltyAmount,
-      transactionData.registrationStatus,
+      registrationData.timestamp,
+      registrationData.sessionId,
+      registrationData.name,
+      registrationData.email,
+      registrationData.phone,
+      registrationData.chapter,
+      registrationData.plan,
+      registrationData.paymentAmount,
+      registrationData.paymentCurrency,
+      registrationData.transactionId,
+      registrationData.telrCardToken,
+      registrationData.noShowConsent,
+      registrationData.penaltyAmount,
+      registrationData.registrationStatus,
     ],
   ];
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: 'Sheet1!A:N', // Adjust based on your columns (14 columns)
+    spreadsheetId: PAID_REGISTRATION_SPREADSHEET_ID,
+    range: 'Sheet1!A:N', // 14 columns
     valueInputOption: 'USER_ENTERED',
     requestBody: { values },
   });
 
-  console.log('Transaction written to Google Sheet!');
+  console.log('Paid registration written to Google Sheet!');
 }
 
-module.exports = { writeToSheet };
+async function writeFreeRegistrationToSheet(registrationData) {
+  const auth = await getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const values = [
+    [
+      registrationData.chapter, // Member Type
+      registrationData.name,    // Name
+      registrationData.phone,   // Mobile
+      registrationData.email,   // Email ID
+    ],
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: FREE_REGISTRATION_SPREADSHEET_ID,
+    range: 'Sheet1!A:D', // 4 columns
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values },
+  });
+
+  console.log('Free registration written to Google Sheet!');
+}
+
+module.exports = {
+  writePaidRegistrationToSheet,
+  writeFreeRegistrationToSheet,
+};

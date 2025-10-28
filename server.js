@@ -9,7 +9,7 @@ const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
 const csv = require('csv-parser'); // Import csv-parser
-const { writeToSheet } = require('./googleSheets'); // Import the helper function
+const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet } = require('./googleSheets'); // Import the helper functions
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -267,55 +267,54 @@ async function isMemberInDatabase(email, phone) {
 ensureCSVFiles();
 
 // Create Telr checkout session
-    app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => {
-      try {
-        const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
+app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => {
+  try {
+    const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
-        console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
+    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
-        // Generate unique session ID
-        const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    // Generate unique session ID
+    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-        // Handle free registrations (amount === 0)
-        if (parseFloat(amount) === 0) {
-          console.log('DEBUG: Free registration. Bypassing Telr checkout.');
+    // Handle free registrations (amount === 0)
+    if (parseFloat(amount) === 0) {
+      console.log('DEBUG: Free registration. Bypassing Telr checkout.');
 
-          const registrationData = {
-            timestamp: new Date().toISOString(),
-            sessionId: sessionId,
-            name: name || 'N/A',
-            email: email || 'N/A',
-            phone: phone || 'N/A',
-            chapter: chapter || 'N/A',
-            plan: plan || 'regular',
-            paymentAmount: '0.00',
-            paymentCurrency: currency ? currency.toUpperCase() : 'AED',
-            transactionId: 'FREE_REGISTRATION',
-            telrCardToken: 'N/A',
-            noShowConsent: noShowConsent || false,
-            penaltyAmount: 0,
-            registrationStatus: 'completed'
-          };
+      const registrationData = {
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        name: name || 'N/A',
+        email: email || 'N/A',
+        phone: phone || 'N/A',
+        chapter: chapter || 'N/A',
+        plan: plan || 'regular',
+        paymentAmount: '0.00',
+        paymentCurrency: currency ? currency.toUpperCase() : 'AED',
+        transactionId: 'FREE_REGISTRATION',
+        telrCardToken: 'N/A',
+        noShowConsent: noShowConsent || false,
+        penaltyAmount: 0,
+        registrationStatus: 'completed'
+      };
 
-          // Save to CSV
-          saveRegistrationToCSV(registrationData);
+      // Save to CSV
+      saveRegistrationToCSV(registrationData);
 
-          // Write to Google Sheet
-          await writeToSheet(registrationData);
+      // Write to Google Sheet
+      await writeFreeRegistrationToSheet(registrationData);
 
-          // Send QR code email
-          await sendQRCodeEmail(registrationData);
+      // Send QR code email
+      await sendQRCodeEmail(registrationData);
 
-          // Redirect to thank you page
-          const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
-          return res.redirect(302, redirectUrl);
-        }
+      // Redirect to thank you page
+      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
+      return res.redirect(302, redirectUrl);
+    }
 
-        // Validate inputs for paid registrations
-        if (!amount || isNaN(amount) || amount <= 0) {
-          return res.status(400).json({ error: 'Invalid amount provided' });
-        }
-// Yeah
+    // Validate inputs for paid registrations
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount provided' });
+    }
     if (!currency || typeof currency !== 'string') {
       return res.status(400).json({ error: 'Invalid currency provided' });
     }
@@ -469,7 +468,7 @@ app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
     saveRegistrationToCSV(registrationData);
 
     // Write to Google Sheet
-    await writeToSheet(registrationData);
+    await writeFreeRegistrationToSheet(registrationData);
 
     // Send QR code email
     await sendQRCodeEmail(registrationData);
@@ -584,7 +583,7 @@ app.get('/payment/success', async (req, res) => {
       saveRegistrationToCSV(registrationData);
 
       // Write to Google Sheet
-      await writeToSheet(registrationData);
+      await writePaidRegistrationToSheet(registrationData);
 
       // Send QR code email
       await sendQRCodeEmail(registrationData);
