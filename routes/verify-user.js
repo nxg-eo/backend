@@ -9,26 +9,36 @@ const MEMBERSHIP_DB_PATH = path.join(__dirname, '../EO Dubai Database.csv');
 
 // Utility function to normalize member type strings
 function normalizeMemberType(memberType) {
-  if (!memberType) return 'guest';
+  console.log(`[normalizeMemberType] Input: '${memberType}'`);
+  if (!memberType) {
+    console.log(`[normalizeMemberType] Output: 'guest' (due to empty input)`);
+    return 'guest';
+  }
   
   const normalized = memberType.toLowerCase().trim();
   
   if (normalized.includes('eo dubai member') || normalized === 'member') {
+    console.log(`[normalizeMemberType] Output: 'eo dubai member'`);
     return 'eo dubai member';
   }
   if (normalized.includes('eo dubai spouse') || normalized.includes('spouse') || normalized.includes('partner')) {
+    console.log(`[normalizeMemberType] Output: 'eo dubai spouse'`);
     return 'eo dubai spouse';
   }
   if (normalized.includes('eo dubai accelerator') || normalized.includes('accelerator')) {
+    console.log(`[normalizeMemberType] Output: 'eo dubai accelerator'`);
     return 'eo dubai accelerator';
   }
   if (normalized.includes('eo dubai next gen') || normalized.includes('next gen')) {
+    console.log(`[normalizeMemberType] Output: 'eo dubai next gen'`);
     return 'eo dubai next gen';
   }
   if (normalized.includes('eo dubai key executive') || normalized.includes('key executive')) {
+    console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`);
     return 'eo dubai key executive';
   }
   
+  console.log(`[normalizeMemberType] Output: 'guest' (default)`);
   return 'guest';
 }
 
