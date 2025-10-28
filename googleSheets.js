@@ -92,7 +92,7 @@ async function writeFreeRegistrationToSheet(registrationData) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: FREE_REGISTRATION_SPREADSHEET_ID,
-      range: 'Sheet1!A:D', // 4 columns
+      range: 'EO DUBAI MEMBERS AND SPOUSES!A:D', // 4 columns
       valueInputOption: 'USER_ENTERED',
       requestBody: { values },
     });
@@ -108,3 +108,4 @@ module.exports = {
   writePaidRegistrationToSheet,
   writeFreeRegistrationToSheet,
 };
+// Yeah
