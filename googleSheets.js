@@ -16,7 +16,7 @@ async function getAuth() {
   if (!credentialsJson) {
     throw new Error('Google Sheets credentials are missing.');
   }
-
+// Yeah
   let credentials;
   try {
     credentials = JSON.parse(credentialsJson);
