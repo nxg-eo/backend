@@ -21,6 +21,9 @@ const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://eodubai.com/ai-for-business';
 
+// Debugging: Log raw GOOGLE_APPLICATION_CREDENTIALS
+console.log('Raw GOOGLE_APPLICATION_CREDENTIALS (first 100 chars):', process.env.GOOGLE_APPLICATION_CREDENTIALS?.substring(0, 100));
+
 const app = express();
 
 // CORS configuration
