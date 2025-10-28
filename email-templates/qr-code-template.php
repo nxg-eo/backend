@@ -73,7 +73,7 @@
         </div>
         <div class="content">
             <p>Dear <?php echo htmlspecialchars($name); ?>,</p>
-            <p>Thank you for registering for the AI FOR BUSINESS Workshop hosted by EO Dubai.</p>
+            <p>Thank you for registering for the AI FOR BUSINESS  hosted by EO Dubai.</p>
 
             <div class="qr-code-section">
                 <h3>Your Event QR Code</h3>
@@ -87,7 +87,7 @@
                 <p><strong>Venue:</strong> Marriott Palm Jumeirah, Dubai</p>
                 <p><strong>Chapter:</strong> <?php echo htmlspecialchars($chapter); ?></p>
                 <p><strong>Registration ID:</strong> <?php echo htmlspecialchars($registrationId); ?></p>
-                <p><strong>Important:</strong> As per your agreement, a no-show penalty of AED <?php echo htmlspecialchars(number_format($penaltyAmount, 0, '.', ',')); ?> will be charged if you do not attend the event.</p>
+                <?php echo $penaltyMessage; ?>
             </div>
 
             <p>We look forward to seeing you at the event!</p>

@@ -120,10 +120,18 @@ async function sendQRCodeEmail(registrationData) {
     emailHtml = emailHtml.replace(/<\?php echo \$qrCodeUrl; \?>/g, qrCodeUrl);
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$chapter\); \?>/g, registrationData.chapter);
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$registrationId\); \?>/g, registrationData.sessionId);
+    // Conditional penalty message
+    let penaltyMessageHtml = '';
+    if (registrationData.noShowConsent && (registrationData.chapter === 'EO Dubai Member' || registrationData.chapter === 'EO Dubai Spouse')) {
+        penaltyMessageHtml = `
+            <p style="margin: 5px 0;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED ${registrationData.penaltyAmount.toLocaleString('en-US')} will be charged if you do not attend the event.</p>
+        `;
+    }
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
-    // Remove PHP tags for date and venue, as they are hardcoded in the template now
+    // Replace placeholders in the template
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$date\); \?>/g, '23-24 January 2026');
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$venue\); \?>/g, 'Marriott Palm Jumeirah, Dubai');
+    emailHtml = emailHtml.replace(/<\?php echo \$penaltyMessage; \?>/g, penaltyMessageHtml);
 
     const result = await resend.emails.send({
       from: fromEmail,
