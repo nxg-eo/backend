@@ -104,8 +104,55 @@ async function writeFreeRegistrationToSheet(registrationData) {
   }
 }
 
+async function checkExistingRegistration(email, phone) {
+  try {
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
+
+    // Check Paid Registrations
+    const paidResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: PAID_REGISTRATION_SPREADSHEET_ID,
+      range: 'Sheet1!D:E', // Columns for email and phone
+    });
+    const paidRows = paidResponse.data.values || [];
+    // Skip header row
+    for (let i = 1; i < paidRows.length; i++) {
+      const rowEmail = paidRows[i][0]?.toLowerCase().trim();
+      const rowPhone = paidRows[i][1] ? paidRows[i][1].replace(/\D/g, '') : '';
+      if (rowEmail === normalizedEmail || (normalizedPhone && rowPhone === normalizedPhone)) {
+        console.log(`[GoogleSheets] Duplicate found in paid registrations for email: ${email}, phone: ${phone}`);
+        return true;
+      }
+    }
+
+    // Check Free Registrations
+    const freeResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: FREE_REGISTRATION_SPREADSHEET_ID,
+      range: 'EO DUBAI MEMBERS AND SPOUSES!C:D', // Columns for Mobile and Email ID
+    });
+    const freeRows = freeResponse.data.values || [];
+    // Skip header row
+    for (let i = 1; i < freeRows.length; i++) {
+      const rowPhone = freeRows[i][0] ? freeRows[i][0].replace(/\D/g, '') : '';
+      const rowEmail = freeRows[i][1]?.toLowerCase().trim();
+      if (rowEmail === normalizedEmail || (normalizedPhone && rowPhone === normalizedPhone)) {
+        console.log(`[GoogleSheets] Duplicate found in free registrations for email: ${email}, phone: ${phone}`);
+        return true;
+      }
+    }
+
+    return false; // No duplicate found
+  } catch (error) {
+    console.error('[GoogleSheets] Error checking existing registration:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   writePaidRegistrationToSheet,
   writeFreeRegistrationToSheet,
+  checkExistingRegistration,
 };
-// Yeah

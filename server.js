@@ -9,7 +9,7 @@ const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
 const csv = require('csv-parser'); // Import csv-parser
-const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet } = require('./googleSheets'); // Import the helper functions
+const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet, checkExistingRegistration } = require('./googleSheets'); // Import the helper functions
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -128,7 +128,9 @@ async function sendQRCodeEmail(registrationData) {
             <p style="margin: 5px 0;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED 3,999 will be charged if you do not attend the event.</p>
         `;
     }
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
+    // The penalty amount is now handled conditionally within penaltyMessageHtml,
+    // so this direct replacement is no longer needed and could cause confusion.
+    // emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
     // Replace placeholders in the template
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$date\); \?>/g, '23-24 January 2026');
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$venue\); \?>/g, 'Marriott Palm Jumeirah, Dubai');
@@ -234,7 +236,13 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
   try {
     const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
-    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
+    console.log('[create-checkout-session] Received request:', { amount, currency, plan, name, email, phone, chapter, noShowConsent });
+
+    // Check for duplicate registration
+    const isDuplicate = await checkExistingRegistration(email, phone);
+    if (isDuplicate) {
+      return res.status(400).json({ error: 'You have already registered for this event with this email or phone number.' });
+    }
 
     // Generate unique session ID
     const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -406,6 +414,12 @@ app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
     const { name, email, phone, chapter, noShowConsent, plan } = req.body;
 
     console.log('[free-registration] Received request:', { name, email, phone, chapter, noShowConsent, plan });
+
+    // Check for duplicate registration
+    const isDuplicate = await checkExistingRegistration(email, phone);
+    if (isDuplicate) {
+      return res.status(400).json({ error: 'You have already registered for this event with this email or phone number.' });
+    }
 
     // Generate unique session ID
     const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
