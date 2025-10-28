@@ -69,7 +69,7 @@ function findUserInConsolidatedCSV(email, phone) {
         const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
 
         for (const user of users) {
-          const memberType = user['Member Type']?.trim();
+          const memberType = (user['Member Type'] || user['﻿Member Type'] || user['MemberType'] || '').trim();
           const userEmail = user['Email ID']?.toLowerCase().trim();
           const userPhone = user['Mobile'] ? user['Mobile'].replace(/\D/g, '') : '';
 
