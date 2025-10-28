@@ -6,26 +6,30 @@ const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNA
 const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
 
 async function getAuth() {
-  const credentials = {
-    type: "service_account",
-    project_id: process.env.GOOGLE_PROJECT_ID,
-    private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-    private_key: process.env.GOOGLE_PRIVATE_KEY,
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    token_uri: "https://oauth2.googleapis.com/token",
-  };
-
   try {
+    // ✅ Load from separate environment variables
+    const credentials = {
+      type: "service_account",
+      project_id: process.env.GOOGLE_PROJECT_ID,
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      token_uri: "https://oauth2.googleapis.com/token",
+    };
+
+    console.log('[GoogleSheets] Credentials loaded successfully');
+    console.log('[GoogleSheets] Client email:', credentials.client_email);
+
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
-    await auth.getClient(); // test auth
-    console.log('[GoogleSheets] ✅ Authentication successful');
+    await auth.getClient();
+    console.log('[GoogleSheets] Authentication successful');
+
     return auth;
   } catch (error) {
-    console.error('[GoogleSheets] ❌ Authentication failed:', error.message);
+    console.error('[GoogleSheets] Authentication failed:', error.message);
     throw new Error('Google Sheets authentication failed: ' + error.message);
   }
 }
