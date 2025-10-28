@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-// Yeah
+
 // Google Sheet ID for paid registrations
 const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNAaLB1mQ';
 // Google Sheet ID for free registrations
