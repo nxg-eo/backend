@@ -315,7 +315,7 @@ ensureCSVFiles();
         if (!amount || isNaN(amount) || amount <= 0) {
           return res.status(400).json({ error: 'Invalid amount provided' });
         }
-
+// Yeah
     if (!currency || typeof currency !== 'string') {
       return res.status(400).json({ error: 'Invalid currency provided' });
     }
