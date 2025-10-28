@@ -153,12 +153,12 @@ router.all('/verify-user', async (req, res) => {
     
     const prices = {
       'EO Dubai Member': { 
-        amount: 1,
+        amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
       'EO Dubai Spouse': { 
-        amount: 1,
+        amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
