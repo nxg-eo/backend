@@ -17,6 +17,10 @@ async function getAuth() {
   let credentials;
   try {
     credentials = JSON.parse(credentialsJson);
+    // Ensure private_key newlines are correctly interpreted
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
   } catch (error) {
     console.error('Error parsing GOOGLE_APPLICATION_CREDENTIALS JSON:', error);
     throw new Error('Invalid Google Sheets credentials JSON.');
