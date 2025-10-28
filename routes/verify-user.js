@@ -5,8 +5,7 @@ const csv = require('csv-parser');
 const path = require('path');
 
 // Define paths for the new CSV databases
-const EO_MEMBERS_CSV = path.join(__dirname, '../EO Dubai database 22nd Oct.xlsx - EO Dubai Members 2025-26.csv');
-const ACCELERATORS_CSV = path.join(__dirname, '../EO Dubai database 22nd Oct.xlsx - Accelerators 2025-26.csv');
+const MEMBERSHIP_DB_PATH = path.join(__dirname, '../EO Dubai Database.csv');
 
 // Utility function to normalize member type strings
 function normalizeMemberType(memberType) {
@@ -46,73 +45,40 @@ function getMemberTypeDisplay(normalizedType) {
   return displayNames[normalizedType] || 'Guest';
 }
 
-// Function to read a specific CSV and find a user
-function findUserInCSV(email, csvFilePath, memberCategory) {
+// Function to read the consolidated CSV and find a user
+function findUserInConsolidatedCSV(email, phone) {
   return new Promise((resolve, reject) => {
     const users = [];
-    fs.createReadStream(csvFilePath)
-      .pipe(csv({ 
-        mapHeaders: ({ header }) => {
-          const trimmedHeader = header.trim();
-          if (trimmedHeader === 'MEMBER E-MAIL' || trimmedHeader === 'EMAIL') return 'Email';
-          if (trimmedHeader === 'MEMBER') return 'Name';
-          if (trimmedHeader === 'MOBILE' || trimmedHeader === 'Mobile') return 'Phone';
-          if (trimmedHeader === 'SPOUSE E-MAIL') return 'Spouse Email';
-          if (trimmedHeader === 'SPOUSE') return 'Spouse Name';
-          if (trimmedHeader === 'SPOUSE MOBILE') return 'Spouse Phone';
-          return trimmedHeader;
-        }
-      }))
+    fs.createReadStream(MEMBERSHIP_DB_PATH)
+      .pipe(csv())
       .on('data', (row) => {
         users.push(row);
       })
       .on('end', () => {
-        let foundUser = null;
-        let memberType = memberCategory;
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
 
-        // Check for member email
-        foundUser = users.find(user => user.Email && user.Email.toLowerCase().trim() === email.toLowerCase().trim());
-        if (foundUser) {
-          // If found in EO Members CSV, check if it's a spouse email
-          if (memberCategory === 'EO Dubai Member' && foundUser['Spouse Email'] && foundUser['Spouse Email'].toLowerCase().trim() === email.toLowerCase().trim()) {
-            memberType = 'EO Dubai Spouse';
-            // Use spouse's name and phone if email matches spouse email
-            foundUser.Name = foundUser['Spouse Name'] || foundUser.Name;
-            foundUser.Phone = foundUser['Spouse Phone'] || foundUser.Phone;
-          }
-          resolve({
-            found: true,
-            email: foundUser.Email,
-            name: foundUser.Name,
-            phone: foundUser.Phone,
-            member_type: getMemberTypeDisplay(memberType),
-            original_member_type: memberType,
-            plan: 'regular' // Default plan, will be overridden by pricing logic
-          });
-          return;
-        }
+        for (const user of users) {
+          const memberType = user['Member Type']?.trim();
+          const userEmail = user['Email ID']?.toLowerCase().trim();
+          const userPhone = user['Mobile'] ? user['Mobile'].replace(/\D/g, '') : '';
 
-        // If not found as a member, check for spouse email in EO Members CSV
-        if (memberCategory === 'EO Dubai Member') {
-          foundUser = users.find(user => user['Spouse Email'] && user['Spouse Email'].toLowerCase().trim() === email.toLowerCase().trim());
-          if (foundUser) {
-            resolve({
+          if (userEmail === normalizedEmail || (normalizedPhone && userPhone === normalizedPhone)) {
+            return resolve({
               found: true,
-              email: foundUser['Spouse Email'],
-              name: foundUser['Spouse Name'] || foundUser.MEMBER, // Fallback to MEMBER if Spouse Name is empty
-              phone: foundUser['Spouse Phone'] || foundUser.MOBILE, // Fallback to MOBILE if Spouse Phone is empty
-              member_type: getMemberTypeDisplay('eo dubai spouse'),
-              original_member_type: 'eo dubai spouse',
-              plan: 'regular'
+              email: userEmail,
+              name: user['Name'],
+              phone: user['Mobile'],
+              member_type: getMemberTypeDisplay(normalizeMemberType(memberType)),
+              original_member_type: normalizeMemberType(memberType),
+              plan: 'regular' // Default plan, will be overridden by pricing logic
             });
-            return;
           }
         }
-        
         resolve({ found: false });
       })
       .on('error', (error) => {
-        console.error(`Error reading CSV file ${csvFilePath}:`, error);
+        console.error(`Error reading consolidated CSV file ${MEMBERSHIP_DB_PATH}:`, error);
         reject(error);
       });
   });
@@ -139,32 +105,21 @@ router.all('/verify-user', async (req, res) => {
     }
     
     let userInfo = { found: false, email: email_input, name: '', phone: '', member_type: 'Guest', original_member_type: null, plan: 'regular' };
+    const phone_input = (req.body.phone || req.query.phone || '').trim();
 
-    // 1. Check EO Dubai Members CSV
+    // Check consolidated EO Dubai Database CSV
     try {
-      const memberInfo = await findUserInCSV(email_input, EO_MEMBERS_CSV, 'EO Dubai Member');
+      const memberInfo = await findUserInConsolidatedCSV(email_input, phone_input);
       if (memberInfo.found) {
         userInfo = memberInfo;
       }
     } catch (error) {
-      console.warn(`Could not read EO Members CSV: ${error.message}`);
-    }
-
-    // 2. If not found as a member/spouse, check Accelerators CSV
-    if (!userInfo.found) {
-      try {
-        const acceleratorInfo = await findUserInCSV(email_input, ACCELERATORS_CSV, 'EO Dubai Accelerator');
-        if (acceleratorInfo.found) {
-          userInfo = acceleratorInfo;
-        }
-      } catch (error) {
-        console.warn(`Could not read Accelerators CSV: ${error.message}`);
-      }
+      console.warn(`Could not read consolidated EO Dubai Database CSV: ${error.message}`);
     }
     
     const discountMessages = {
-      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted!',
-      'EO Dubai Spouse': 'As an EO Dubai Spouse your entry fee is discounted!',
+      'EO Dubai Member': 'As an EO Dubai Member, your entry fee is discounted!',
+      'EO Dubai Spouse': 'As an EO Dubai Spouse, your entry fee is discounted!',
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
