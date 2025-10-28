@@ -6,42 +6,30 @@ const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNA
 const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
 
 async function getAuth() {
-  const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // Prefer the JSON env
+  const credentialsJson =
+    process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
+    (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)
+      ? fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8')
+      : null);
 
   if (!credentialsJson) {
-    console.error('GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.');
     throw new Error('Google Sheets credentials are missing.');
   }
 
   let credentials;
   try {
     credentials = JSON.parse(credentialsJson);
-    
-    // CRITICAL FIX: Properly handle the private key
-    if (credentials.private_key) {
-      // Remove any existing escaped newlines and ensure proper formatting
-      credentials.private_key = credentials.private_key
-        .replace(/\\n/gm, '\n')  // Replace literal \n with actual newlines
-        .replace(/\n\n+/g, '\n'); // Remove any double newlines
-      
-      // Verify the key format
-      if (!credentials.private_key.includes('BEGIN PRIVATE KEY') || 
-          !credentials.private_key.includes('END PRIVATE KEY')) {
-        console.error('Private key appears to be malformed - missing BEGIN/END markers');
-        throw new Error('Invalid private key format');
-      }
-    } else {
-      throw new Error('Private key is missing from credentials');
+
+    // Fix escaped newlines if present
+    if (credentials.private_key.includes('\\n')) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
     }
-    
+
     console.log('[GoogleSheets] Credentials loaded successfully');
-    console.log('[GoogleSheets] Client email:', credentials.client_email);
-    console.log('[GoogleSheets] Private key format check: PASSED');
-    
-  } catch (error) {
-    console.error('Error parsing GOOGLE_APPLICATION_CREDENTIALS JSON:', error);
-    console.error('Raw credentials (first 100 chars):', credentialsJson.substring(0, 100));
-    throw new Error('Invalid Google Sheets credentials JSON: ' + error.message);
+  } catch (err) {
+    console.error('Error parsing credentials JSON:', err);
+    throw err;
   }
 
   try {
@@ -49,11 +37,8 @@ async function getAuth() {
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
-    
-    // Test the authentication
     await auth.getClient();
     console.log('[GoogleSheets] Authentication successful');
-    
     return auth;
   } catch (authError) {
     console.error('[GoogleSheets] Authentication failed:', authError.message);
