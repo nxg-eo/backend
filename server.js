@@ -123,8 +123,9 @@ async function sendQRCodeEmail(registrationData) {
     // Conditional penalty message
     let penaltyMessageHtml = '';
     if (registrationData.noShowConsent && (registrationData.chapter === 'EO Dubai Member' || registrationData.chapter === 'EO Dubai Spouse')) {
+        // Hardcode AED 3,999 for EO Dubai Members and Spouses as per feedback
         penaltyMessageHtml = `
-            <p style="margin: 5px 0;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED ${registrationData.penaltyAmount.toLocaleString('en-US')} will be charged if you do not attend the event.</p>
+            <p style="margin: 5px 0;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED 3,999 will be charged if you do not attend the event.</p>
         `;
     }
     emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
