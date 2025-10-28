@@ -21,6 +21,7 @@ async function getAuth() {
     if (credentials.private_key) {
       credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
     }
+    console.log('[GoogleSheets] Parsed credentials (private_key snippet):', credentials.private_key ? credentials.private_key.substring(0, 30) + '...' + credentials.private_key.substring(credentials.private_key.length - 30) : 'N/A');
   } catch (error) {
     console.error('Error parsing GOOGLE_APPLICATION_CREDENTIALS JSON:', error);
     throw new Error('Invalid Google Sheets credentials JSON.');
