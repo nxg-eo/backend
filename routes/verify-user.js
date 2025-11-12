@@ -162,16 +162,16 @@ router.all('/verify-user', async (req, res) => {
         penalty: 3999,
         currency: 'AED'
       },
-      'EO Dubai Accelerator': {
-        amount: 2999,
+      'EO Dubai Accelerator': { 
+        amount: 3999,
         currency: 'AED'
       },
-      'EO Dubai Next Gen': {
-        amount: 2999,
+      'EO Dubai Next Gen': { 
+        amount: 3999,
         currency: 'AED'
       },
-      'EO Dubai Key Executive': {
-        amount: 2999,
+      'EO Dubai Key Executive': { 
+        amount: 3999,
         currency: 'AED'
       },
       'Guest': { 
