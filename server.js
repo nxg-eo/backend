@@ -352,9 +352,9 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
-      bill_country: 'AE'
+      bill_country: 'AE',
       // Temporarily disabled ivp_create_token to debug Telr E01:Invalid request
-      // ivp_create_token: '1'
+      ivp_create_token: '0'
     };
 
     const isMember = await isMemberInDatabase(email, phone);
