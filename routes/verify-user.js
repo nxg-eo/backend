@@ -163,15 +163,15 @@ router.all('/verify-user', async (req, res) => {
         currency: 'AED'
       },
       'EO Dubai Accelerator': { 
-        amount: 3999,
+        amount: 2999,
         currency: 'AED'
       },
       'EO Dubai Next Gen': { 
-        amount: 3999,
+        amount: 2999,
         currency: 'AED'
       },
       'EO Dubai Key Executive': { 
-        amount: 3999,
+        amount: 2999,
         currency: 'AED'
       },
       'Guest': { 
