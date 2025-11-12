@@ -9,7 +9,7 @@ const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
 const csv = require('csv-parser'); // Import csv-parser
-const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet, checkExistingRegistration } = require('./googleSheets'); // Import the helper functions
+const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet } = require('./googleSheets'); // Import the helper functions
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -112,29 +112,64 @@ async function sendQRCodeEmail(registrationData) {
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
     console.log('[sendQRCodeEmail] Generated QR Code URL:', qrCodeUrl);
 
-    const templatePath = path.join(__dirname, 'email-templates', 'qr-code-template.php');
-    let emailHtml = fs.readFileSync(templatePath, 'utf8');
-
-    // Replace placeholders in the template
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$name\); \?>/g, registrationData.name);
-    emailHtml = emailHtml.replace(/<\?php echo \$qrCodeUrl; \?>/g, qrCodeUrl);
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$chapter\); \?>/g, registrationData.chapter);
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$registrationId\); \?>/g, registrationData.sessionId);
-    // Conditional penalty message
-    let penaltyMessageHtml = '';
-    if (registrationData.noShowConsent && (registrationData.chapter === 'EO Dubai Member' || registrationData.chapter === 'EO Dubai Spouse')) {
-        // Hardcode AED 3,999 for EO Dubai Members and Spouses as per feedback
-        penaltyMessageHtml = `
-            <p style="margin: 5px 0;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED 3,999 will be charged if you do not attend the event.</p>
-        `;
-    }
-    // The penalty amount is now handled conditionally within penaltyMessageHtml,
-    // so this direct replacement is no longer needed and could cause confusion.
-    // emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(number_format\(\$penaltyAmount, 0, '\.', ','\)\); \?>/g, registrationData.penaltyAmount.toLocaleString('en-US'));
-    // Replace placeholders in the template
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$date\); \?>/g, '23-24 January 2026');
-    emailHtml = emailHtml.replace(/<\?php echo htmlspecialchars\(\$venue\); \?>/g, 'Marriott Palm Jumeirah, Dubai');
-    emailHtml = emailHtml.replace(/<\?php echo \$penaltyMessage; \?>/g, penaltyMessageHtml);
+    const emailHtml = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">AI FOR BUSINESS</h1>
+            <p style="color: white; margin: 10px 0 0 0;">23-24 January 2026</p>
+          </div>
+          
+          <div style="padding: 30px; background: #f9f9f9;">
+            <h2 style="color: #333; margin-top: 0;">Registration Confirmed!</h2>
+            <p>Dear ${registrationData.name},</p>
+            <p>Thank you for registering for the <strong>AI FOR BUSINESS Workshop</strong> hosted by EO Dubai.</p>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+              <h3 style="color: #667eea; margin-top: 0;">Your Event QR Code</h3>
+              <img src="${qrCodeUrl}" alt="QR Code" style="max-width: 300px; border: 2px solid #667eea; padding: 10px; border-radius: 10px;" />
+              <p style="margin-top: 20px; font-size: 14px; color: #666;">Please present this QR code at the event entrance</p>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0;">
+              <h3 style="color: #667eea; margin-top: 0;">Event Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Date:</td>
+                  <td style="padding: 8px 0;">23-24 January 2026</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Venue:</td>
+                  <td style="padding: 8px 0;">Marriott Palm Jumeirah, Dubai</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Chapter:</td>
+                  <td style="padding: 8px 0;">${registrationData.chapter}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold;">Registration ID:</td>
+                  <td style="padding: 8px 0;">${registrationData.sessionId}</td>
+                </tr>
+              </table>
+            </div>
+            
+            ${registrationData.noShowConsent ? `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 10px; border-left: 4px solid #ffc107;">
+              <p style="margin: 0; color: #856404;"><strong>Important:</strong> As per your agreement, a no-show penalty of AED ${registrationData.penaltyAmount} will be charged if you do not attend the event.</p>
+            </div>
+            ` : ''}
+            
+            <p style="margin-top: 30px;">We look forward to seeing you at the event!</p>
+            <p>Best regards,<br><strong>EO Dubai Team</strong></p>
+          </div>
+          
+          <div style="background: #333; padding: 20px; text-align: center; color: white; font-size: 12px;">
+            <p style="margin: 0;">© 2026 EO Dubai. All rights reserved.</p>
+            <p style="margin: 10px 0 0 0;">For support, contact: <a href="mailto:${fromEmail}" style="color: #667eea;">${fromEmail}</a></p>
+          </div>
+        </body>
+      </html>
+    `;
 
     const result = await resend.emails.send({
       from: fromEmail,
@@ -236,13 +271,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
   try {
     const { amount, currency, plan, name, email, phone, chapter, noShowConsent } = req.body;
 
-    console.log('[create-checkout-session] Received request:', { amount, currency, plan, name, email, phone, chapter, noShowConsent });
-
-    // Check for duplicate registration
-    const isDuplicate = await checkExistingRegistration(email, phone);
-    if (isDuplicate) {
-      return res.status(400).json({ error: 'You have already registered for this event with this email or phone number.' });
-    }
+    console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
     // Generate unique session ID
     const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -277,12 +306,8 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       // Send QR code email
       await sendQRCodeEmail(registrationData);
 
-      // Determine redirect URL based on chapter
-      let redirectPage = 'thankyou.php'; // Default for others
-      if (chapter === 'EO Dubai Member' || chapter === 'EO Dubai Spouse') {
-        redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
-      }
-      const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${sessionId}`;
+      // Redirect to thank you page
+      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
       return res.redirect(302, redirectUrl);
     }
 
@@ -327,9 +352,9 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
-      bill_country: 'AE',
+      bill_country: 'AE'
       // Temporarily disabled ivp_create_token to debug Telr E01:Invalid request
-      ivp_create_token: '1'
+      // ivp_create_token: '1'
     };
 
     const isMember = await isMemberInDatabase(email, phone);
@@ -339,7 +364,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
     );
 
     if (isVerifyTransaction) {
-      // telrParams.ivp_type = 'verify'; // Removed as per live mode requirements and Telr E01 error
+      telrParams.ivp_type = 'verify';
       telrParams.ivp_amount = '1.00'; // Ensure amount is 1.00 for verify transactions
       telrParams.ivp_desc = 'Card Verification AED 1 (Refundable)';
       console.log('[create-checkout-session] Initiating Telr "verify" transaction for AED 1.');
@@ -419,12 +444,6 @@ app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
 
     console.log('[free-registration] Received request:', { name, email, phone, chapter, noShowConsent, plan });
 
-    // Check for duplicate registration
-    const isDuplicate = await checkExistingRegistration(email, phone);
-    if (isDuplicate) {
-      return res.status(400).json({ error: 'You have already registered for this event with this email or phone number.' });
-    }
-
     // Generate unique session ID
     const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
@@ -454,12 +473,7 @@ app.post('/api/free-registration', cors(corsOptions), async (req, res) => {
     // Send QR code email
     await sendQRCodeEmail(registrationData);
 
-    // Determine redirect URL based on chapter
-    let redirectPage = 'thankyou.php'; // Default for others
-    if (chapter === 'EO Dubai Member' || chapter === 'EO Dubai Spouse') {
-      redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
-    }
-    const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${sessionId}`;
+    const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${sessionId}`;
     res.json({ success: true, redirectUrl: redirectUrl });
 
   } catch (error) {
@@ -587,13 +601,8 @@ app.get('/payment/success', async (req, res) => {
         }
       }
 
-      // Determine redirect URL based on chapter from metadata
-      let redirectPage = 'thankyou.php'; // Default for others
-      if (metadata.chapter === 'EO Dubai Member' || metadata.chapter === 'EO Dubai Spouse') {
-        redirectPage = 'thanks.php'; // Redirect members/spouses to thanks.php
-      }
       // Redirect to thank you page using a URL fragment to avoid mod_security issues
-      const redirectUrl = `${FRONTEND_URL}/${redirectPage}#session_id=${metadata.sessionId || sessionId}`;
+      const redirectUrl = `${FRONTEND_URL}/thanks.php#session_id=${metadata.sessionId || sessionId}`;
       res.redirect(302, redirectUrl);
     } else {
       console.error('[payment/success] Payment not successful:', telrOrder.status);
