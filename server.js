@@ -364,7 +364,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
     );
 
     if (isVerifyTransaction) {
-      // telrParams.ivp_type = 'verify'; // Removed as per live mode requirements and Telr E01 error
+      telrParams.ivp_type = 'verify';
       telrParams.ivp_amount = '1.00'; // Ensure amount is 1.00 for verify transactions
       telrParams.ivp_desc = 'Card Verification AED 1 (Refundable)';
       console.log('[create-checkout-session] Initiating Telr "verify" transaction for AED 1.');
