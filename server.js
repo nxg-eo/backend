@@ -809,10 +809,16 @@ app.get('/api/registration/:sessionId', async (req, res) => {
   }
 });
 
+// Check Railway IP for whitelisting
+app.get('/check-ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  res.json({ railwayIP: ip });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     frontendUrl: FRONTEND_URL,
