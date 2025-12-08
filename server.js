@@ -334,13 +334,13 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       ? 'https://backend-production-c14ce.up.railway.app'
       : `http://localhost:${PORT}`;
 
-    // Telr parameters with card tokenization enabled
+    // Telr parameters - using test mode to avoid IP whitelisting issues
     const telrParams = {
       ivp_method: 'create',
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: sessionId,
-      ivp_test: isProduction ? '0' : '1',
+      ivp_test: '1', // Force test mode to avoid IP restrictions
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
@@ -355,9 +355,6 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_city: 'Dubai',
       bill_country: 'AE'
     };
-
-    // Enable tokenization for all transactions
-    telrParams.ivp_create_token = '1';
 
     if (phone) {
       telrParams.bill_phone = phone;
