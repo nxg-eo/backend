@@ -273,8 +273,8 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
 
     console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
-    // Generate unique session ID
-    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    // Generate unique session ID (shorter for Telr compatibility)
+    const sessionId = `AI${Date.now()}${Math.floor(Math.random() * 100)}`;
 
     // Handle free registrations (amount === 0)
     if (parseFloat(amount) === 0) {
