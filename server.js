@@ -324,14 +324,15 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
     }
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
-    const backendUrl = isProduction 
-      ? 'https://backend-production-c14ce.up.railway.app' 
-      : `http://localhost:${PORT}`;
 
     // Split name
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0] || name;
     const lastName = nameParts.slice(1).join(' ') || 'User';
+
+    const backendUrl = isProduction
+      ? 'https://backend-production-c14ce.up.railway.app'
+      : `http://localhost:${PORT}`;
 
     // Telr parameters with card tokenization enabled
     const telrParams = {
