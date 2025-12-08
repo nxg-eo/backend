@@ -334,13 +334,13 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       ? 'https://backend-production-c14ce.up.railway.app'
       : `http://localhost:${PORT}`;
 
-    // Telr parameters - using test mode to avoid IP whitelisting issues
+    // Telr parameters
     const telrParams = {
       ivp_method: 'create',
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: sessionId,
-      ivp_test: '1', // Force test mode to avoid IP restrictions
+      ivp_test: isProduction ? '0' : '1', // Live mode in production, test mode in development
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
