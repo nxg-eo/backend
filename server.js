@@ -353,6 +353,8 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
+      bill_region: 'Dubai',
+      bill_zip: '00000',
       bill_country: 'AE'
     };
 
