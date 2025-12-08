@@ -325,9 +325,10 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
 
-    // Split name
-    const nameParts = name.trim().split(' ');
-    const firstName = nameParts[0] || name;
+    // Split name safely with fallback
+    const safeName = (name || 'Guest User').trim();
+    const nameParts = safeName.split(' ');
+    const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || 'User';
 
     const backendUrl = isProduction
