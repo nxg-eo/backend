@@ -352,23 +352,11 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
-      bill_country: 'AE',
-      // Temporarily disabled ivp_create_token to debug Telr E01:Invalid request
-      ivp_create_token: '0'
+      bill_country: 'AE'
     };
 
-    const isMember = await isMemberInDatabase(email, phone);
-
-    const isVerifyTransaction = (
-      isMember && amountInDecimal === '1.00'
-    );
-
-    if (isVerifyTransaction) {
-      telrParams.ivp_type = 'verify';
-      telrParams.ivp_amount = '1.00'; // Ensure amount is 1.00 for verify transactions
-      telrParams.ivp_desc = 'Card Verification AED 1 (Refundable)';
-      console.log('[create-checkout-session] Initiating Telr "verify" transaction for AED 1.');
-    }
+    // Enable tokenization for all transactions
+    telrParams.ivp_create_token = '1';
 
     if (phone) {
       telrParams.bill_phone = phone;
