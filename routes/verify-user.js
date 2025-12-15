@@ -37,6 +37,10 @@ function normalizeMemberType(memberType) {
     // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
     return 'eo dubai key executive';
   }
+  if (normalized.includes('eo global key executive')) {
+    // console.log(`[normalizeMemberType] Output: 'eo global key executive'`); // Commented out for reduced logging
+    return 'eo global key executive';
+  }
   
   // console.log(`[normalizeMemberType] Output: 'guest' (default)`); // Commented out for reduced logging
   return 'guest';
@@ -50,6 +54,7 @@ function getMemberTypeDisplay(normalizedType) {
     'eo dubai accelerator': 'EO Dubai Accelerator',
     'eo dubai next gen': 'EO Dubai Next Gen',
     'eo dubai key executive': 'EO Dubai Key Executive',
+    'eo global key executive': 'EO Global Key Executive',
     'guest': 'Guest'
   };
   return displayNames[normalizedType] || 'Guest';
@@ -148,6 +153,7 @@ router.all('/verify-user', async (req, res) => {
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
+      'EO Global Key Executive': 'As an EO Global Key Executive, your entry fee is discounted!',
       'Guest': 'Standard pricing applies (no discount)'
     };
     
@@ -170,11 +176,15 @@ router.all('/verify-user', async (req, res) => {
         amount: 3999,
         currency: 'AED'
       },
-      'EO Dubai Key Executive': { 
+      'EO Dubai Key Executive': {
         amount: 3999,
         currency: 'AED'
       },
-      'Guest': { 
+      'EO Global Key Executive': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'Guest': {
         amount: 5999,
         currency: 'AED'
       }
@@ -224,6 +234,7 @@ router.get('/member-types', async (req, res) => {
       'EO Dubai Accelerator',
       'EO Dubai Next Gen',
       'EO Dubai Key Executive',
+      'EO Global Key Executive',
       'Guest'
     ];
     res.json({
