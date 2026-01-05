@@ -177,7 +177,7 @@ router.all('/verify-user', async (req, res) => {
         currency: 'AED'
       },
       'EO Dubai Key Executive': {
-        amount: 3999,
+        amount: 2999,
         currency: 'AED'
       },
       'EO Global Key Executive': {
