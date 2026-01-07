@@ -1069,6 +1069,7 @@
                 'EO Dubai Next Gen': { amount: 2999 },
                 'EO Dubai Key Executive': { amount: 3999 },
                 'EO Global Key Executive': { amount: 3999 },
+                'EO Jordan': { amount: 3999 },
                 'Guest': { amount: 5999 } // Guest category (formerly Others)
             };
 
