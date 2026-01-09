@@ -3,6 +3,8 @@ const { google } = require('googleapis');
 const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNAaLB1mQ';
 // Google Sheet ID for free registrations
 const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
+// Google Sheet ID for QR codes
+const QR_CODES_SPREADSHEET_ID = '1uQCiJTqDzXv1oEu4mLg3VYenRdmXZ7lVjttLNI2QTjI';
 
 async function getAuth() {
   try {
@@ -151,8 +153,40 @@ async function checkExistingRegistration(email, phone) {
   }
 }
 
+async function writeQRCodeToSheet(qrCodeData) {
+  try {
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const values = [
+      [
+        qrCodeData.email,
+        qrCodeData.qrCodeUrl,
+        qrCodeData.sentAt,
+        qrCodeData.sessionId,
+        qrCodeData.name,
+        qrCodeData.chapter,
+        qrCodeData.plan,
+      ],
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: QR_CODES_SPREADSHEET_ID,
+      range: 'Sheet1!A:G', // 7 columns: email, qrCodeUrl, sentAt, sessionId, name, chapter, plan
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values },
+    });
+
+    console.log('[GoogleSheets] QR code written successfully!');
+  } catch (error) {
+    console.error('[GoogleSheets] Error writing QR code:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   writePaidRegistrationToSheet,
   writeFreeRegistrationToSheet,
   checkExistingRegistration,
+  writeQRCodeToSheet,
 };
