@@ -54,7 +54,7 @@ function ensureCSVFiles() {
   const penaltiesFile = path.join(__dirname, 'penalty_records.csv');
   const qrCodesFile = path.join(__dirname, 'qr_codes.csv');
 
-  const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus\n';
+  const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus,qrCodeUrl\n';
   const penaltyHeader = 'timestamp,sessionId,name,email,originalTransactionId,penaltyAmount,penaltyStatus,penaltyTransactionId,notes\n';
   const qrCodeHeader = 'email,qrCodeUrl,sentAt,sessionId,name,chapter,plan\n';
 
@@ -74,10 +74,10 @@ function ensureCSVFiles() {
 // Save registration to CSV
 function saveRegistrationToCSV(registrationData) {
   const filePath = path.join(__dirname, 'registrations.csv');
-  
+
   try {
-    const csvLine = `${new Date().toISOString()},${registrationData.sessionId},"${registrationData.name}",${registrationData.email},${registrationData.phone},${registrationData.chapter},${registrationData.plan},${registrationData.paymentAmount},${registrationData.paymentCurrency},${registrationData.transactionId},${registrationData.telrCardToken || 'N/A'},${registrationData.noShowConsent},${registrationData.penaltyAmount || 0},${registrationData.registrationStatus}\n`;
-    
+    const csvLine = `${new Date().toISOString()},${registrationData.sessionId},"${registrationData.name}",${registrationData.email},${registrationData.phone},${registrationData.chapter},${registrationData.plan},${registrationData.paymentAmount},${registrationData.paymentCurrency},${registrationData.transactionId},${registrationData.telrCardToken || 'N/A'},${registrationData.noShowConsent},${registrationData.penaltyAmount || 0},${registrationData.registrationStatus},${registrationData.qrCodeUrl || 'N/A'}\n`;
+
     fs.appendFileSync(filePath, csvLine);
     console.log(`[saveRegistrationToCSV] Registration saved for ${registrationData.email}`);
   } catch (error) {
@@ -621,6 +621,16 @@ app.get('/payment/success', async (req, res) => {
         penaltyAmount: metadata.penaltyAmount || 0,
         registrationStatus: 'completed'
       };
+
+      // Generate QR code URL for storage
+      const qrCodeData = JSON.stringify({
+        sessionId: registrationData.sessionId,
+        name: registrationData.name,
+        email: registrationData.email,
+        plan: registrationData.plan,
+        chapter: registrationData.chapter
+      });
+      registrationData.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
 
       // Save to CSV
       saveRegistrationToCSV(registrationData);

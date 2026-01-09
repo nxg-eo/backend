@@ -61,12 +61,13 @@ async function writePaidRegistrationToSheet(registrationData) {
         registrationData.noShowConsent,
         registrationData.penaltyAmount,
         registrationData.registrationStatus,
+        registrationData.qrCodeUrl, // QR Code Link column
       ],
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: PAID_REGISTRATION_SPREADSHEET_ID,
-      range: 'Sheet1!A:N', // 14 columns
+      range: 'Sheet1!A:O', // 15 columns (added QR Code Link)
       valueInputOption: 'USER_ENTERED',
       requestBody: { values },
     });
