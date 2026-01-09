@@ -149,34 +149,40 @@
                             </div>
                         `;
                     } else {
+                        // Fallback content as specified by the user
                         thankYouContent.innerHTML = `
                             <p class="info">
                                 Payment verification failed. Please contact support if you believe this is an error.
                             </p>
                             <div class="pt-3">
-                                <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
+                                <a href="https://eodubai.com/ai-for-business"><span class="ai-btn ai-btn-register">Home</span></a>
                             </div>
                         `;
                     }
                 } catch (error) {
                     console.error('Error verifying payment:', error);
+                    // Fallback content on error as specified by the user
                     thankYouContent.innerHTML = `
                         <p class="info">
                             There was an error processing your payment. Please contact support.
                         </p>
                         <div class="pt-3">
-                            <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
+                            <a href="https://eodubai.com/ai-for-business"><span class="ai-btn ai-btn-register">Home</span></a>
                         </div>
                     `;
                 }
             } else {
-                // No order_id, show generic message
+                // If no orderId is present in the URL, display the generic thank you message
                 thankYouContent.innerHTML = `
                     <p class="info">
-                        Thank you for your interest! Please complete the registration process.
+                        Thank you for registering for <b>AI FOR BUSINESS</b> !
+                        <br><br>
+                        Your payment and registration are complete. A confirmation email containing your payment receipt and event QR code will be sent to your registered email address within 24 hours.
+                        <br><br>
+                        Please check your inbox or spam folder for the confirmation email.
                     </p>
                     <div class="pt-3">
-                        <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
+                        <a href="https://eodubai.com/ai-for-business"><span class="ai-btn ai-btn-register">Home</span></a>
                     </div>
                 `;
             }
