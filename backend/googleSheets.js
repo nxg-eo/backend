@@ -3,6 +3,8 @@ const { google } = require('googleapis');
 const PAID_REGISTRATION_SPREADSHEET_ID = '1fYGoo61srzZGk4I1baffIAeVcQDldNlT2UuNAaLB1mQ';
 // Google Sheet ID for free registrations
 const FREE_REGISTRATION_SPREADSHEET_ID = '1YniUUzizIjG8UeUKGhbLAevunkQ7gcIq6GgNsSk_s-0';
+// Google Sheet ID for QR codes
+const QR_CODES_SPREADSHEET_ID = '1uQCiJTqDzXv1oEu4mLg3VYenRdmXZ7lVjttLNI2QTjI';
 
 async function getAuth() {
   try {
@@ -59,12 +61,13 @@ async function writePaidRegistrationToSheet(registrationData) {
         registrationData.noShowConsent,
         registrationData.penaltyAmount,
         registrationData.registrationStatus,
+        registrationData.qrCodeUrl, // QR Code Link column
       ],
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: PAID_REGISTRATION_SPREADSHEET_ID,
-      range: 'Sheet1!A:N', // 14 columns
+      range: 'Sheet1!A:O', // 15 columns (added QR Code Link)
       valueInputOption: 'USER_ENTERED',
       requestBody: { values },
     });
@@ -92,7 +95,7 @@ async function writeFreeRegistrationToSheet(registrationData) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: FREE_REGISTRATION_SPREADSHEET_ID,
-      range: 'Sheet1!A:D', // 4 columns
+      range: 'EO DUBAI MEMBERS AND SPOUSES!A:D', // 4 columns
       valueInputOption: 'USER_ENTERED',
       requestBody: { values },
     });
@@ -104,7 +107,87 @@ async function writeFreeRegistrationToSheet(registrationData) {
   }
 }
 
+async function checkExistingRegistration(email, phone) {
+  try {
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
+
+    // Check Paid Registrations
+    const paidResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: PAID_REGISTRATION_SPREADSHEET_ID,
+      range: 'Sheet1!D:E', // Columns for email and phone
+    });
+    const paidRows = paidResponse.data.values || [];
+    // Skip header row
+    for (let i = 1; i < paidRows.length; i++) {
+      const rowEmail = paidRows[i][0]?.toLowerCase().trim();
+      const rowPhone = paidRows[i][1] ? paidRows[i][1].replace(/\D/g, '') : '';
+      if (rowEmail === normalizedEmail || (normalizedPhone && rowPhone === normalizedPhone)) {
+        console.log(`[GoogleSheets] Duplicate found in paid registrations for email: ${email}, phone: ${phone}`);
+        return true;
+      }
+    }
+
+    // Check Free Registrations
+    const freeResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: FREE_REGISTRATION_SPREADSHEET_ID,
+      range: 'EO DUBAI MEMBERS AND SPOUSES!C:D', // Columns for Mobile and Email ID
+    });
+    const freeRows = freeResponse.data.values || [];
+    // Skip header row
+    for (let i = 1; i < freeRows.length; i++) {
+      const rowPhone = freeRows[i][0] ? freeRows[i][0].replace(/\D/g, '') : '';
+      const rowEmail = freeRows[i][1]?.toLowerCase().trim();
+      if (rowEmail === normalizedEmail || (normalizedPhone && rowPhone === normalizedPhone)) {
+        console.log(`[GoogleSheets] Duplicate found in free registrations for email: ${email}, phone: ${phone}`);
+        return true;
+      }
+    }
+
+    return false; // No duplicate found
+  } catch (error) {
+    console.error('[GoogleSheets] Error checking existing registration:', error);
+    throw error;
+  }
+}
+
+async function writeQRCodeToSheet(qrCodeData) {
+  try {
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const values = [
+      [
+        qrCodeData.email,
+        qrCodeData.qrCodeUrl,
+        qrCodeData.sentAt,
+        qrCodeData.sessionId,
+        qrCodeData.name,
+        qrCodeData.chapter,
+        qrCodeData.plan,
+      ],
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: QR_CODES_SPREADSHEET_ID,
+      range: 'Sheet1!A:G', // 7 columns: email, qrCodeUrl, sentAt, sessionId, name, chapter, plan
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values },
+    });
+
+    console.log('[GoogleSheets] QR code written successfully!');
+  } catch (error) {
+    console.error('[GoogleSheets] Error writing QR code:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   writePaidRegistrationToSheet,
   writeFreeRegistrationToSheet,
+  checkExistingRegistration,
+  writeQRCodeToSheet,
 };

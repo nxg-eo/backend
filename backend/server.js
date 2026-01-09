@@ -9,7 +9,7 @@ const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
 const csv = require('csv-parser'); // Import csv-parser
-const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet } = require('./googleSheets'); // Import the helper functions
+const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet, writeQRCodeToSheet } = require('./googleSheets'); // Import the helper functions
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -52,26 +52,32 @@ app.use((req, res, next) => {
 function ensureCSVFiles() {
   const registrationsFile = path.join(__dirname, 'registrations.csv');
   const penaltiesFile = path.join(__dirname, 'penalty_records.csv');
-  
-  const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus\n';
+  const qrCodesFile = path.join(__dirname, 'qr_codes.csv');
+
+  const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus,qrCodeUrl\n';
   const penaltyHeader = 'timestamp,sessionId,name,email,originalTransactionId,penaltyAmount,penaltyStatus,penaltyTransactionId,notes\n';
-  
+  const qrCodeHeader = 'email,qrCodeUrl,sentAt,sessionId,name,chapter,plan\n';
+
   if (!fs.existsSync(registrationsFile)) {
     fs.writeFileSync(registrationsFile, registrationHeader);
   }
-  
+
   if (!fs.existsSync(penaltiesFile)) {
     fs.writeFileSync(penaltiesFile, penaltyHeader);
+  }
+
+  if (!fs.existsSync(qrCodesFile)) {
+    fs.writeFileSync(qrCodesFile, qrCodeHeader);
   }
 }
 
 // Save registration to CSV
 function saveRegistrationToCSV(registrationData) {
   const filePath = path.join(__dirname, 'registrations.csv');
-  
+
   try {
-    const csvLine = `${new Date().toISOString()},${registrationData.sessionId},"${registrationData.name}",${registrationData.email},${registrationData.phone},${registrationData.chapter},${registrationData.plan},${registrationData.paymentAmount},${registrationData.paymentCurrency},${registrationData.transactionId},${registrationData.telrCardToken || 'N/A'},${registrationData.noShowConsent},${registrationData.penaltyAmount || 0},${registrationData.registrationStatus}\n`;
-    
+    const csvLine = `${new Date().toISOString()},${registrationData.sessionId},"${registrationData.name}",${registrationData.email},${registrationData.phone},${registrationData.chapter},${registrationData.plan},${registrationData.paymentAmount},${registrationData.paymentCurrency},${registrationData.transactionId},${registrationData.telrCardToken || 'N/A'},${registrationData.noShowConsent},${registrationData.penaltyAmount || 0},${registrationData.registrationStatus},${registrationData.qrCodeUrl || 'N/A'}\n`;
+
     fs.appendFileSync(filePath, csvLine);
     console.log(`[saveRegistrationToCSV] Registration saved for ${registrationData.email}`);
   } catch (error) {
@@ -83,14 +89,29 @@ function saveRegistrationToCSV(registrationData) {
 // Save penalty record to CSV
 function savePenaltyToCSV(penaltyData) {
   const filePath = path.join(__dirname, 'penalty_records.csv');
-  
+
   try {
     const csvLine = `${new Date().toISOString()},${penaltyData.sessionId},"${penaltyData.name}",${penaltyData.email},${penaltyData.originalTransactionId},${penaltyData.penaltyAmount},${penaltyData.penaltyStatus},${penaltyData.penaltyTransactionId || 'N/A'},"${penaltyData.notes}"\n`;
-    
+
     fs.appendFileSync(filePath, csvLine);
     console.log(`[savePenaltyToCSV] Penalty record saved for ${penaltyData.email}`);
   } catch (error) {
     console.error(`[savePenaltyToCSV] Error saving penalty:`, error);
+    throw error;
+  }
+}
+
+// Save QR code to CSV (fallback when Google Sheets fails)
+function saveQRCodeToCSV(qrCodeData) {
+  const filePath = path.join(__dirname, 'qr_codes.csv');
+
+  try {
+    const csvLine = `${qrCodeData.email},${qrCodeData.qrCodeUrl},${qrCodeData.sentAt},${qrCodeData.sessionId},"${qrCodeData.name}",${qrCodeData.chapter},${qrCodeData.plan}\n`;
+
+    fs.appendFileSync(filePath, csvLine);
+    console.log(`[saveQRCodeToCSV] QR code saved for ${qrCodeData.email}`);
+  } catch (error) {
+    console.error(`[saveQRCodeToCSV] Error saving QR code:`, error);
     throw error;
   }
 }
@@ -185,6 +206,39 @@ async function sendQRCodeEmail(registrationData) {
 
     console.log('[sendQRCodeEmail] QR code email sent successfully to:', registrationData.email);
     console.log('[sendQRCodeEmail] Resend API result:', result);
+
+    // Store QR code in Google Sheet
+    try {
+      const qrCodeSheetData = {
+        email: registrationData.email,
+        qrCodeUrl: qrCodeUrl,
+        sentAt: new Date().toISOString(),
+        sessionId: registrationData.sessionId,
+        name: registrationData.name,
+        chapter: registrationData.chapter,
+        plan: registrationData.plan
+      };
+      await writeQRCodeToSheet(qrCodeSheetData);
+      console.log('[sendQRCodeEmail] QR code stored in Google Sheet');
+    } catch (sheetError) {
+      console.error('[sendQRCodeEmail] Failed to store QR code in Google Sheet:', sheetError);
+      // Fallback: Store in local CSV
+      try {
+        saveQRCodeToCSV({
+          email: registrationData.email,
+          qrCodeUrl: qrCodeUrl,
+          sentAt: new Date().toISOString(),
+          sessionId: registrationData.sessionId,
+          name: registrationData.name,
+          chapter: registrationData.chapter,
+          plan: registrationData.plan
+        });
+        console.log('[sendQRCodeEmail] QR code stored in local CSV as fallback');
+      } catch (csvError) {
+        console.error('[sendQRCodeEmail] Failed to store QR code in CSV fallback:', csvError);
+      }
+    }
+
     return { success: true, messageId: result.id };
   } catch (error) {
     console.error('[sendQRCodeEmail] Error sending email:', error);
@@ -273,8 +327,8 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
 
     console.log('[create-checkout-session] Received request:', { amount, currency, plan, email, chapter, noShowConsent });
 
-    // Generate unique session ID
-    const sessionId = `AIWS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    // Generate unique session ID (shorter for Telr compatibility)
+    const sessionId = `AI${Date.now()}${Math.floor(Math.random() * 100)}`;
 
     // Handle free registrations (amount === 0)
     if (parseFloat(amount) === 0) {
@@ -324,22 +378,24 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
     }
 
     const amountInDecimal = parseFloat(amount).toFixed(2);
-    const backendUrl = isProduction 
-      ? 'https://backend-production-c14ce.up.railway.app' 
-      : `http://localhost:${PORT}`;
 
-    // Split name
-    const nameParts = name.trim().split(' ');
-    const firstName = nameParts[0] || name;
+    // Split name safely with fallback
+    const safeName = (name || 'Guest User').trim();
+    const nameParts = safeName.split(' ');
+    const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || 'User';
 
-    // Telr parameters with card tokenization enabled
+    const backendUrl = isProduction
+      ? 'https://backend-production-c14ce.up.railway.app'
+      : `http://localhost:${PORT}`;
+
+    // Telr parameters
     const telrParams = {
       ivp_method: 'create',
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: sessionId,
-      ivp_test: isProduction ? '0' : '1',
+      ivp_test: isProduction ? '0' : '1', // Live mode in production, test mode in development
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
@@ -352,23 +408,10 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       bill_email: email,
       bill_addr1: 'UAE',
       bill_city: 'Dubai',
+      bill_region: 'Dubai',
+      bill_zip: '00000',
       bill_country: 'AE'
-      // Temporarily disabled ivp_create_token to debug Telr E01:Invalid request
-      // ivp_create_token: '1'
     };
-
-    const isMember = await isMemberInDatabase(email, phone);
-
-    const isVerifyTransaction = (
-      isMember && amountInDecimal === '1.00'
-    );
-
-    if (isVerifyTransaction) {
-      telrParams.ivp_type = 'verify';
-      telrParams.ivp_amount = '1.00'; // Ensure amount is 1.00 for verify transactions
-      telrParams.ivp_desc = 'Card Verification AED 1 (Refundable)';
-      console.log('[create-checkout-session] Initiating Telr "verify" transaction for AED 1.');
-    }
 
     if (phone) {
       telrParams.bill_phone = phone;
@@ -578,6 +621,16 @@ app.get('/payment/success', async (req, res) => {
         penaltyAmount: metadata.penaltyAmount || 0,
         registrationStatus: 'completed'
       };
+
+      // Generate QR code URL for storage
+      const qrCodeData = JSON.stringify({
+        sessionId: registrationData.sessionId,
+        name: registrationData.name,
+        email: registrationData.email,
+        plan: registrationData.plan,
+        chapter: registrationData.chapter
+      });
+      registrationData.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
 
       // Save to CSV
       saveRegistrationToCSV(registrationData);
@@ -812,7 +865,7 @@ app.get('/api/registration/:sessionId', async (req, res) => {
         chapter: foundRegistration.chapter
       });
       foundRegistration.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
-      
+
       return res.json({ success: true, registration: foundRegistration });
     } else {
       return res.status(404).json({ error: 'Registration not found' });
@@ -823,10 +876,100 @@ app.get('/api/registration/:sessionId', async (req, res) => {
   }
 });
 
+// Resend QR code by email
+app.post('/api/resend-qr-code', cors(corsOptions), async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    console.log('[resend-qr-code] Resending QR code for email:', email);
+
+    const registrationsFile = path.join(__dirname, 'registrations.csv');
+
+    if (!fs.existsSync(registrationsFile)) {
+      return res.status(404).json({ error: 'Registrations database not found' });
+    }
+
+    const csvContent = fs.readFileSync(registrationsFile, 'utf8');
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',');
+
+    let latestRegistration = null;
+    let latestTimestamp = null;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        const fields = line.split(',').map(field => field.replace(/^"|"$/g, '').trim());
+        const registrationEmail = fields[3]?.toLowerCase().trim();
+        const timestamp = fields[0];
+
+        if (registrationEmail === email.toLowerCase().trim()) {
+          if (!latestTimestamp || timestamp > latestTimestamp) {
+            latestTimestamp = timestamp;
+            latestRegistration = {};
+            headers.forEach((header, index) => {
+              latestRegistration[header.trim()] = fields[index];
+            });
+          }
+        }
+      }
+    }
+
+    if (!latestRegistration) {
+      return res.status(404).json({ error: 'No registration found for this email' });
+    }
+
+    console.log('[resend-qr-code] Found latest registration:', latestRegistration.sessionId);
+
+    // Send QR code email
+    const emailResult = await sendQRCodeEmail(latestRegistration);
+
+    if (emailResult.success) {
+      res.json({
+        success: true,
+        message: 'QR code resent successfully',
+        sessionId: latestRegistration.sessionId
+      });
+    } else {
+      res.status(500).json({
+        error: 'Failed to resend QR code',
+        details: emailResult.error
+      });
+    }
+  } catch (error) {
+    console.error('[resend-qr-code] Error:', error);
+    res.status(500).json({
+      error: 'Failed to resend QR code',
+      details: error.message
+    });
+  }
+});
+
+// Check Railway IP for whitelisting
+app.get('/check-ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  res.json({ railwayIP: ip });
+});
+
+// Debug endpoint to get actual outbound IP
+app.get('/debug/ip', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.ipify.org');
+    res.json({ outboundIP: response.data });
+  } catch (error) {
+    console.error('[debug/ip] Error fetching IP:', error);
+    res.status(500).json({ error: 'Failed to fetch outbound IP' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     frontendUrl: FRONTEND_URL,
@@ -856,16 +999,36 @@ app.use((req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Frontend URL: ${FRONTEND_URL}`);
-  console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
-  console.log(`Telr Store ID: ${TELR_STORE_ID ? 'Configured' : 'MISSING'}`);
-  console.log(`Telr Auth Key: ${TELR_AUTH_KEY ? 'Configured' : 'MISSING'}`);
-  console.log(`Resend API Key: ${process.env.RESEND_API_KEY ? 'Configured' : 'MISSING'}`);
-  console.log(`From Email: ${fromEmail}`);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Test MySQL connection
+    const dbConnected = await testConnection();
+    if (dbConnected) {
+      // Initialize tables
+      await initializeTables();
+    } else {
+      console.warn('[STARTUP] MySQL connection failed, continuing without database');
+    }
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Frontend URL: ${FRONTEND_URL}`);
+      console.log(`CORS enabled for: ${corsOptions.origin.join(', ')}`);
+      console.log(`Telr Store ID: ${TELR_STORE_ID ? 'Configured' : 'MISSING'}`);
+      console.log(`Telr Auth Key: ${TELR_AUTH_KEY ? 'Configured' : 'MISSING'}`);
+      console.log(`Resend API Key: ${process.env.RESEND_API_KEY ? 'Configured' : 'MISSING'}`);
+      console.log(`From Email: ${fromEmail}`);
+      console.log(`MySQL Database: ${dbConnected ? 'Connected' : 'Disconnected'}`);
+    });
+  } catch (error) {
+    console.error('[STARTUP] Error initializing server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = app;
