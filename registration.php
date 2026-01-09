@@ -877,6 +877,16 @@
                                     <option value="Guest">Guest</option>
                                     <li></li>
                                     <hr class="dropdown-divider" style="color: #ededed">
+                                    <option value="
+                                    <option value="EO Global Key Executive">EO Global Key Executive</option>
+                                    <option value="Guest">Guest</option>
+                                    <li></li>
+                                    <hr class="dropdown-divider" style="color: #ededed">
+                                    <option value="EO Adelaide">EO Adelaide</option>
+
+                                    <option value="Guest">Guest</option>
+                                    <li></li>
+                                    <hr class="dropdown-divider" style="color: #ededed">
                                     <option value="EO Adelaide">EO Adelaide</option>
                                     <option value="EO Albany">EO Albany</option>
                                     <option value="EO Andhra Pradesh">EO Andhra Pradesh</option>
@@ -1065,11 +1075,17 @@
                 currency: 'AED',
                 'EO Dubai Member': { amount: 0, penalty: 3999 },
                 'EO Dubai Spouse': { amount: 0, penalty: 3999 },
+
                 'EO Dubai Accelerator': { amount: 2999 },
                 'EO Dubai Next Gen': { amount: 2999 },
                 'EO Dubai Key Executive': { amount: 3999 },
                 'EO Global Key Executive': { amount: 3999 },
                 'EO Jordan': { amount: 3999 },
+
+                'EO Dubai Accelerator': { amount: 3999 },
+                'EO Dubai Next Gen': { amount: 3999 },
+                'EO Dubai Key Executive': { amount: 3999 },
+
                 'Guest': { amount: 5999 } // Guest category (formerly Others)
             };
 
@@ -1212,7 +1228,11 @@
                 if (chapterForPricing === 'EO Dubai Member' || chapterForPricing === 'EO Dubai Spouse') {
                     amount = currentPricing[chapterForPricing].amount; // AED 0
                     // reversibleChargeNotice.style.display = 'block'; // Removed as per request
+
                 } else if (chapterForPricing === 'EO Dubai Accelerator' || chapterForPricing === 'EO Dubai Next Gen' || chapterForPricing === 'EO Dubai Key Executive' || chapterForPricing === 'EO Global Key Executive' || chapterForPricing === 'EO Jordan') {
+
+                } else if (chapterForPricing === 'EO Dubai Accelerator' || chapterForPricing === 'EO Dubai Next Gen' || chapterForPricing === 'EO Dubai Key Executive') {
+
                     amount = currentPricing[chapterForPricing].amount; // AED 3999
                     // reversibleChargeNotice.style.display = 'none'; // Removed as per request
                 } else if (chapterForPricing === 'Guest') {

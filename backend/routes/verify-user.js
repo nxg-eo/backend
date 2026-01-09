@@ -4,29 +4,41 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const path = require('path');
 
+// Define paths for the new CSV databases
+const MEMBERSHIP_DB_PATH = path.join(__dirname, '../EO Dubai Database.csv');
+
 // Utility function to normalize member type strings
 function normalizeMemberType(memberType) {
-  if (!memberType) return 'guest';
+  // console.log(`[normalizeMemberType] Input: '${memberType}'`); // Commented out for reduced logging
+  if (!memberType) {
+    // console.log(`[normalizeMemberType] Output: 'guest' (due to empty input)`); // Commented out for reduced logging
+    return 'guest';
+  }
   
   const normalized = memberType.toLowerCase().trim();
   
-  // Handle various possible formats
   if (normalized.includes('eo dubai member') || normalized === 'member') {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai member'`); // Commented out for reduced logging
     return 'eo dubai member';
   }
   if (normalized.includes('eo dubai spouse') || normalized.includes('spouse') || normalized.includes('partner')) {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai spouse'`); // Commented out for reduced logging
     return 'eo dubai spouse';
   }
   if (normalized.includes('eo dubai accelerator') || normalized.includes('accelerator')) {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai accelerator'`); // Commented out for reduced logging
     return 'eo dubai accelerator';
   }
   if (normalized.includes('eo dubai next gen') || normalized.includes('next gen')) {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai next gen'`); // Commented out for reduced logging
     return 'eo dubai next gen';
   }
   if (normalized.includes('eo dubai key executive') || normalized.includes('key executive')) {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
     return 'eo dubai key executive';
   }
   
+  // console.log(`[normalizeMemberType] Output: 'guest' (default)`); // Commented out for reduced logging
   return 'guest';
 }
 
@@ -43,54 +55,47 @@ function getMemberTypeDisplay(normalizedType) {
   return displayNames[normalizedType] || 'Guest';
 }
 
-// Function to read CSV and find user
-function verifyUserFromCSV(email, csvPath) {
+// Function to read the consolidated CSV and find a user
+function findUserInConsolidatedCSV(email, phone) {
   return new Promise((resolve, reject) => {
     const users = [];
-    fs.createReadStream(csvPath)
-      .pipe(csv({ 
-        skipLines: 1, // Skip the first empty row
-        mapHeaders: ({ header }) => {
-          const trimmedHeader = header.trim();
-          if (trimmedHeader === 'Category') return 'Member Type';
-          if (trimmedHeader === 'Mobile') return 'Phone';
-          return trimmedHeader;
-        }
-      }))
+    fs.createReadStream(MEMBERSHIP_DB_PATH)
+      .pipe(csv())
       .on('data', (row) => {
         users.push(row);
       })
       .on('end', () => {
-        const foundUser = users.find(user => user.Email && user.Email.toLowerCase().trim() === email.toLowerCase().trim());
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedPhone = phone ? phone.replace(/\D/g, '') : '';
 
-        if (foundUser) {
-          const normalizedType = normalizeMemberType(foundUser['Member Type']);
-          const displayType = getMemberTypeDisplay(normalizedType);
+        for (const user of users) {
+          const memberType = (user['Member Type'] || user['﻿Member Type'] || user['MemberType'] || '').trim();
+          const userEmail = user['Email ID']?.toLowerCase().trim();
+          const userPhone = user['Mobile'] ? user['Mobile'].replace(/\D/g, '') : '';
 
-          console.log(`DEBUG: Email: ${foundUser.Email}, Name: ${foundUser.Name}, Phone: ${foundUser.Phone}, CSV Member Type: '${foundUser['Member Type']}', Normalized Type: '${normalizedType}', Display Type: '${displayType}', Plan: ${foundUser.Plan}`);
+          // console.log(`[findUserInConsolidatedCSV] Checking row: Member Type: '${memberType}', Email: '${userEmail}', Phone: '${userPhone}'`); // Commented out for reduced logging
+          // console.log(`[findUserInConsolidatedCSV] Comparing with: Normalized Email: '${normalizedEmail}', Normalized Phone: '${normalizedPhone}'`); // Commented out for reduced logging
 
-          resolve({
-            found: true,
-            email: foundUser.Email,
-            name: foundUser.Name,
-            phone: foundUser.Phone, // Assuming 'Phone' column in CSV is now 'Mobile'
-            member_type: displayType,
-            original_member_type: foundUser['Member Type'],
-            plan: foundUser.Plan // Include the plan from CSV
-          });
-        } else {
-          resolve({
-            found: false,
-            email: email.toLowerCase().trim(),
-            name: '',
-            phone: '',
-            member_type: 'Guest',
-            original_member_type: null,
-            plan: 'regular' // Default plan for guests
-          });
+          if (userEmail === normalizedEmail || (normalizedPhone && userPhone === normalizedPhone)) {
+            // console.log(`[findUserInConsolidatedCSV] Match found for input email: '${email}', input phone: '${phone}'.`); // Commented out for reduced logging
+            // console.log(`[findUserInConsolidatedCSV] Matched user data from CSV:`, user); // Commented out for reduced logging
+            // console.log(`[findUserInConsolidatedCSV] Resolved member_type: '${getMemberTypeDisplay(normalizeMemberType(memberType))}'`); // Commented out for reduced logging
+            return resolve({
+              found: true,
+              email: userEmail,
+              name: user['Name'],
+              phone: user['Mobile'],
+              member_type: getMemberTypeDisplay(normalizeMemberType(memberType)),
+              original_member_type: normalizeMemberType(memberType),
+              plan: 'regular'
+            });
+          }
         }
+        // console.log(`[findUserInConsolidatedCSV] No match found for input email: '${email}', input phone: '${phone}'.`); // Commented out for reduced logging
+        resolve({ found: false });
       })
       .on('error', (error) => {
+        console.error(`Error reading consolidated CSV file ${MEMBERSHIP_DB_PATH}:`, error);
         reject(error);
       });
   });
@@ -101,7 +106,6 @@ router.all('/verify-user', async (req, res) => {
   try {
     const email_input = (req.body.email || req.query.email || '').trim();
     
-    // Validate email input
     if (!email_input) {
       return res.status(400).json({ 
         error: 'Email is required',
@@ -109,7 +113,6 @@ router.all('/verify-user', async (req, res) => {
       });
     }
     
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email_input)) {
       return res.status(400).json({ 
@@ -118,15 +121,30 @@ router.all('/verify-user', async (req, res) => {
       });
     }
     
-    const csvPath = path.join(__dirname, '../Test Database - Sheet1.csv');
+    let userInfo = { 
+      found: false, 
+      email: email_input, 
+      name: '', 
+      phone: '', 
+      member_type: 'Guest', 
+      original_member_type: null, 
+      plan: 'regular' 
+    };
+    const phone_input = (req.body.phone || req.query.phone || '').trim();
+
+    // Check consolidated EO Dubai Database CSV
+    try {
+      const memberInfo = await findUserInConsolidatedCSV(email_input, phone_input);
+      if (memberInfo.found) {
+        userInfo = memberInfo;
+      }
+    } catch (error) {
+      console.warn(`Could not read consolidated EO Dubai Database CSV: ${error.message}`);
+    }
     
-    // Verify user from CSV
-    const userInfo = await verifyUserFromCSV(email_input, csvPath);
-    
-    // Define pricing and discount information based on user feedback
     const discountMessages = {
-      'EO Dubai Member': 'As an EO Dubai member your entry fee is discounted!',
-      'EO Dubai Spouse': 'As an an EO Dubai Spouse your entry fee is discounted!',
+      'EO Dubai Member': 'As an EO Dubai Member, your entry fee is discounted!',
+      'EO Dubai Spouse': 'As an EO Dubai Spouse, your entry fee is discounted!',
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
@@ -135,12 +153,12 @@ router.all('/verify-user', async (req, res) => {
     
     const prices = {
       'EO Dubai Member': { 
-        amount: 1, // AED 1 reversible charge
+        amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
       'EO Dubai Spouse': { 
-        amount: 1, // AED 1 reversible charge
+        amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
@@ -157,12 +175,11 @@ router.all('/verify-user', async (req, res) => {
         currency: 'AED'
       },
       'Guest': { 
-        amount: 5999, // Default for Others/Guest
+        amount: 5999,
         currency: 'AED'
       }
     };
     
-    // Prepare response
     const response = {
       success: true,
       email: userInfo.email,
@@ -172,12 +189,20 @@ router.all('/verify-user', async (req, res) => {
       is_member: userInfo.found,
       discount_message: discountMessages[userInfo.member_type],
       pricing: prices[userInfo.member_type],
-      plan: userInfo.plan, // Include the plan in the response
-      verification_timestamp: new Date().toISOString()
+      plan: userInfo.plan,
+      verification_timestamp: new Date().toISOString(),
+      // Autopopulate fields for form
+      autopopulate: {
+        name: userInfo.name || '',
+        phone: userInfo.phone || '',
+        member_type: userInfo.member_type || 'Guest',
+        email: userInfo.email
+      }
     };
     
-    // Log the full response being sent for audit purposes
-    console.log(`User verification response for ${userInfo.email}:`, response);
+    // console.log(`[verify-user route] Input email: ${email_input}, Input phone: ${phone_input}`); // Commented out for reduced logging
+    // console.log(`[verify-user route] Final userInfo:`, userInfo); // Commented out for reduced logging
+    // console.log(`[verify-user route] User verification response for ${userInfo.email}:`, response); // Commented out for reduced logging
     
     return res.json(response);
     
@@ -193,30 +218,20 @@ router.all('/verify-user', async (req, res) => {
 // Additional route to get all member types (for debugging/admin)
 router.get('/member-types', async (req, res) => {
   try {
-    const csvPath = path.join(__dirname, '../members.csv');
-    const memberTypes = new Set();
-    
-    fs.createReadStream(csvPath)
-      .pipe(csv())
-      .on('data', (data) => {
-        const memberType = data['Member Type'] || data['member type'] || data['MEMBER TYPE'] || '';
-        if (memberType) {
-          memberTypes.add(memberType.trim());
-        }
-      })
-      .on('end', () => {
-        res.json({
-          success: true,
-          member_types: Array.from(memberTypes).sort()
-        });
-      })
-      .on('error', (error) => {
-        res.status(500).json({ 
-          error: 'Error reading member types',
-          success: false 
-        });
-      });
+    const allMemberTypes = [
+      'EO Dubai Member',
+      'EO Dubai Spouse',
+      'EO Dubai Accelerator',
+      'EO Dubai Next Gen',
+      'EO Dubai Key Executive',
+      'Guest'
+    ];
+    res.json({
+      success: true,
+      member_types: allMemberTypes.sort()
+    });
   } catch (error) {
+    console.error('Error in /member-types route:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       success: false 
