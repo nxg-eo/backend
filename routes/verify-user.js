@@ -37,6 +37,14 @@ function normalizeMemberType(memberType) {
     // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
     return 'eo dubai key executive';
   }
+  if (normalized.includes('eo other key executive')) {
+    // console.log(`[normalizeMemberType] Output: 'eo other key executive'`); // Commented out for reduced logging
+    return 'eo other key executive';
+  }
+  if (normalized.includes('eo dubai key executive') || normalized.includes('key executive')) {
+    // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
+    return 'eo dubai key executive';
+  }
   if (normalized.includes('eo mepa bridge')) {
     return 'eo mepa bridge';
   }
@@ -59,6 +67,7 @@ function getMemberTypeDisplay(normalizedType) {
     'eo dubai accelerator': 'EO Dubai Accelerator',
     'eo dubai next gen': 'EO Dubai Next Gen',
     'eo dubai key executive': 'EO Dubai Key Executive',
+    'eo other key executive': 'EO Other Key Executive',
     'eo mepa bridge': 'EO MEPA Bridge',
     'eo kuwait': 'EO Kuwait',
     'eo pune': 'EO Pune',
@@ -160,6 +169,7 @@ router.all('/verify-user', async (req, res) => {
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
+      'EO Other Key Executive': 'As an EO Other Key Executive, your entry fee is discounted!',
       'EO MEPA Bridge': 'Special pricing applied for EO MEPA Bridge!',
       'EO Kuwait': 'Special pricing applied for EO Kuwait!',
       'EO Pune': 'Special pricing applied for EO Pune!',
@@ -187,6 +197,10 @@ router.all('/verify-user', async (req, res) => {
       },
       'EO Dubai Key Executive': {
         amount: 2999,
+        currency: 'AED'
+      },
+      'EO Other Key Executive': {
+        amount: 3999,
         currency: 'AED'
       },
       'EO Global Key Executive': {
@@ -259,6 +273,7 @@ router.get('/member-types', async (req, res) => {
       'EO Dubai Accelerator',
       'EO Dubai Next Gen',
       'EO Dubai Key Executive',
+      'EO Other Key Executive',
       'Guest'
     ];
     res.json({
