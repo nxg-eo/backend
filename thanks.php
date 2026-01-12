@@ -107,29 +107,22 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            // Read order_id or order_ref from URL query parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const orderId = urlParams.get('order_id') || urlParams.get('order_ref');
+            // Read session_id from URL fragment (#)
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            const sessionId = params.get('session_id');
             const thankYouContent = document.getElementById('thankYouContent');
 
-            if (orderId) {
+            if (sessionId) {
                 const backendApiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? 'http://localhost:3001/api/telr/verify'
-                    : 'https://backend-production-c14ce.up.railway.app/api/telr/verify';
+                    ? 'http://localhost:3001/api/registration/'
+                    : 'https://backend-production-c14ce.up.railway.app/api/registration/';
 
                 try {
-                    const response = await fetch(backendApiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ orderId: orderId })
-                    });
-
+                    const response = await fetch(`${backendApiUrl}${sessionId}`);
                     if (!response.ok) {
-                        throw new Error('Failed to verify payment');
+                        throw new Error('Failed to fetch registration details');
                     }
-
                     const data = await response.json();
 
                     if (data.success && data.registration) {
@@ -151,7 +144,8 @@
                     } else {
                         thankYouContent.innerHTML = `
                             <p class="info">
-                                Payment verification failed. Please contact support if you believe this is an error.
+                                Thank you for your registration! <br><br>
+                                A confirmation email with your QR code has been sent to your email address.
                             </p>
                             <div class="pt-3">
                                 <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
@@ -159,26 +153,17 @@
                         `;
                     }
                 } catch (error) {
-                    console.error('Error verifying payment:', error);
+                    console.error('Error fetching registration details:', error);
                     thankYouContent.innerHTML = `
                         <p class="info">
-                            There was an error processing your payment. Please contact support.
+                            Thank you for your registration! <br><br>
+                            A confirmation email with your QR code has been sent to your email address.
                         </p>
                         <div class="pt-3">
                             <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
                         </div>
                     `;
                 }
-            } else {
-                // No order_id, show generic message
-                thankYouContent.innerHTML = `
-                    <p class="info">
-                        Thank you for your interest! Please complete the registration process.
-                    </p>
-                    <div class="pt-3">
-                        <a href="https://eodubai.com/ai-for-business" ><span class="ai-btn ai-btn-register">Home</span></a>
-                    </div>
-                `;
             }
         });
     </script>
