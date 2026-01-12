@@ -242,7 +242,7 @@ async function isMemberInDatabase(email, phone) {
           const memberEmail = member['Email ID']?.toLowerCase().trim();
           const memberPhone = member['Mobile'] ? member['Mobile'].replace(/\D/g, '') : '';
 
-          const isTargetMemberType = ['EO Dubai Member', 'EO Dubai Spouse', 'EO Dubai Accelerator'].includes(memberType);
+          const isTargetMemberType = ['EO Dubai Member', 'EO Dubai Spouse', 'EO Dubai Accelerator', 'EO Other Key Executive'].includes(memberType);
 
           if (isTargetMemberType) {
             if (memberEmail === normalizedEmail) {
