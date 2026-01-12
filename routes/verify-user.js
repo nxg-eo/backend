@@ -59,6 +59,9 @@ function getMemberTypeDisplay(normalizedType) {
     'eo dubai accelerator': 'EO Dubai Accelerator',
     'eo dubai next gen': 'EO Dubai Next Gen',
     'eo dubai key executive': 'EO Dubai Key Executive',
+    'eo mepa bridge': 'EO MEPA Bridge',
+    'eo kuwait': 'EO Kuwait',
+    'eo pune': 'EO Pune',
     'guest': 'Guest'
   };
   return displayNames[normalizedType] || 'Guest';
@@ -157,6 +160,9 @@ router.all('/verify-user', async (req, res) => {
       'EO Dubai Accelerator': 'As an EO Dubai Accelerator, your entry fee is discounted!',
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
+      'EO MEPA Bridge': 'Special pricing applied for EO MEPA Bridge!',
+      'EO Kuwait': 'Special pricing applied for EO Kuwait!',
+      'EO Pune': 'Special pricing applied for EO Pune!',
       'Guest': 'Standard pricing applies (no discount)'
     };
     
