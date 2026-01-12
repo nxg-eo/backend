@@ -37,7 +37,16 @@ function normalizeMemberType(memberType) {
     // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
     return 'eo dubai key executive';
   }
-  
+  if (normalized.includes('eo mepa bridge')) {
+    return 'eo mepa bridge';
+  }
+  if (normalized.includes('eo kuwait')) {
+    return 'eo kuwait';
+  }
+  if (normalized.includes('eo pune')) {
+    return 'eo pune';
+  }
+
   // console.log(`[normalizeMemberType] Output: 'guest' (default)`); // Commented out for reduced logging
   return 'guest';
 }
