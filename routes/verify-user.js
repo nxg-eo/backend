@@ -152,29 +152,49 @@ router.all('/verify-user', async (req, res) => {
     };
     
     const prices = {
-      'EO Dubai Member': { 
+      'EO Dubai Member': {
         amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
-      'EO Dubai Spouse': { 
+      'EO Dubai Spouse': {
         amount: 0,
         penalty: 3999,
         currency: 'AED'
       },
-      'EO Dubai Accelerator': { 
+      'EO Dubai Accelerator': {
+        amount: 2999,
+        currency: 'AED'
+      },
+      'EO Dubai Next Gen': {
+        amount: 2999,
+        currency: 'AED'
+      },
+      'EO Dubai Key Executive': {
+        amount: 2999,
+        currency: 'AED'
+      },
+      'EO Global Key Executive': {
         amount: 3999,
         currency: 'AED'
       },
-      'EO Dubai Next Gen': { 
+      'EO Jordan': {
         amount: 3999,
         currency: 'AED'
       },
-      'EO Dubai Key Executive': { 
+      'EO MEPA Bridge': {
         amount: 3999,
         currency: 'AED'
       },
-      'Guest': { 
+      'EO Kuwait': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Pune': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'Guest': {
         amount: 5999,
         currency: 'AED'
       }
