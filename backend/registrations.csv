@@ -1,0 +1,2 @@
+timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus
+2025-10-24T10:12:48.590Z,AIWS-1761300753945-7117,"Devanshu Dandekar",devanshudandekar5@gmail.com,9594193572,EO Adelaide,regular,5999.00,AED,030047028624,N/A,false,0,completed
