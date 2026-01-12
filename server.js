@@ -825,14 +825,28 @@ app.get('/api/registration/:sessionId', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     frontendUrl: FRONTEND_URL,
     telrConfigured: !!(TELR_STORE_ID && TELR_AUTH_KEY),
     resendConfigured: !!(process.env.RESEND_API_KEY && fromEmail)
   });
+});
+
+// Outbound IP check
+app.get('/api/outbound-ip', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.ipify.org?format=json');
+    res.json({
+      outbound_ip: response.data.ip,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[outbound-ip] Error fetching IP:', error);
+    res.status(500).json({ error: 'Failed to fetch outbound IP' });
+  }
 });
 
 // Mount verify-user router with CORS
