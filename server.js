@@ -818,17 +818,6 @@ app.get('/check-ip', (req, res) => {
   res.json({ railwayIP: ip });
 });
 
-// Debug endpoint to get actual outbound IP
-app.get('/debug/ip', async (req, res) => {
-  try {
-    const response = await axios.get('https://api.ipify.org');
-    res.json({ outboundIP: response.data });
-  } catch (error) {
-    console.error('[debug/ip] Error fetching IP:', error);
-    res.status(500).json({ error: 'Failed to fetch outbound IP' });
-  }
-});
-
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
