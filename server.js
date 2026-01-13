@@ -339,7 +339,7 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: sessionId,
-      ivp_test: '1', // Test mode
+      ivp_test: isProduction ? '0' : '1',
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
@@ -682,7 +682,7 @@ app.post('/api/charge-penalty', async (req, res) => {
       ivp_store: TELR_STORE_ID,
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: `PENALTY-${sessionId}-${Date.now()}`,
-      ivp_test: '1', // Test mode
+      ivp_test: isProduction ? '0' : '1',
       ivp_amount: registrationFound.penaltyAmount.toFixed(2),
       ivp_currency: 'AED',
       ivp_desc: `No-Show Penalty - ${sessionId}`,
