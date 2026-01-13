@@ -1212,7 +1212,7 @@
                 if (chapterForPricing === 'EO Dubai Member' || chapterForPricing === 'EO Dubai Spouse') {
                     amount = currentPricing[chapterForPricing].amount; // AED 0
                     // reversibleChargeNotice.style.display = 'block'; // Removed as per request
-                } else if (chapterForPricing === 'EO Dubai Accelerator' || chapterForPricing === 'EO Dubai Next Gen' || chapterForPricing === 'EO Dubai Key Executive' || chapterForPricing === 'EO Global Key Executive' || chapterForPricing === 'EO Jordan') {
+                } else if (chapterForPricing === 'EO Dubai Accelerator' || chapterForPricing === 'EO Dubai Next Gen' || chapterForPricing === 'EO Dubai Key Executive' || chapterForPricing === 'EO Global Key Executive') {
                     amount = currentPricing[chapterForPricing].amount; // AED 3999
                     // reversibleChargeNotice.style.display = 'none'; // Removed as per request
                 } else if (chapterForPricing === 'Guest') {

@@ -9,7 +9,7 @@ const { Resend } = require('resend');
 const fs = require('fs');
 const querystring = require('querystring');
 const csv = require('csv-parser'); // Import csv-parser
-const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet, writeQRCodeToSheet } = require('./googleSheets'); // Import the helper functions
+const { writePaidRegistrationToSheet, writeFreeRegistrationToSheet } = require('./googleSheets'); // Import the helper functions
 
 // Environment variables with fallbacks
 const TELR_STORE_ID = process.env.TELR_STORE_ID || '33890';
@@ -52,22 +52,16 @@ app.use((req, res, next) => {
 function ensureCSVFiles() {
   const registrationsFile = path.join(__dirname, 'registrations.csv');
   const penaltiesFile = path.join(__dirname, 'penalty_records.csv');
-  const qrCodesFile = path.join(__dirname, 'qr_codes.csv');
-
+  
   const registrationHeader = 'timestamp,sessionId,name,email,phone,chapter,plan,paymentAmount,paymentCurrency,transactionId,telrCardToken,noShowConsent,penaltyAmount,registrationStatus\n';
   const penaltyHeader = 'timestamp,sessionId,name,email,originalTransactionId,penaltyAmount,penaltyStatus,penaltyTransactionId,notes\n';
-  const qrCodeHeader = 'email,qrCodeUrl,sentAt,sessionId,name,chapter,plan\n';
-
+  
   if (!fs.existsSync(registrationsFile)) {
     fs.writeFileSync(registrationsFile, registrationHeader);
   }
-
+  
   if (!fs.existsSync(penaltiesFile)) {
     fs.writeFileSync(penaltiesFile, penaltyHeader);
-  }
-
-  if (!fs.existsSync(qrCodesFile)) {
-    fs.writeFileSync(qrCodesFile, qrCodeHeader);
   }
 }
 
@@ -89,29 +83,14 @@ function saveRegistrationToCSV(registrationData) {
 // Save penalty record to CSV
 function savePenaltyToCSV(penaltyData) {
   const filePath = path.join(__dirname, 'penalty_records.csv');
-
+  
   try {
     const csvLine = `${new Date().toISOString()},${penaltyData.sessionId},"${penaltyData.name}",${penaltyData.email},${penaltyData.originalTransactionId},${penaltyData.penaltyAmount},${penaltyData.penaltyStatus},${penaltyData.penaltyTransactionId || 'N/A'},"${penaltyData.notes}"\n`;
-
+    
     fs.appendFileSync(filePath, csvLine);
     console.log(`[savePenaltyToCSV] Penalty record saved for ${penaltyData.email}`);
   } catch (error) {
     console.error(`[savePenaltyToCSV] Error saving penalty:`, error);
-    throw error;
-  }
-}
-
-// Save QR code to CSV (fallback when Google Sheets fails)
-function saveQRCodeToCSV(qrCodeData) {
-  const filePath = path.join(__dirname, 'qr_codes.csv');
-
-  try {
-    const csvLine = `${qrCodeData.email},${qrCodeData.qrCodeUrl},${qrCodeData.sentAt},${qrCodeData.sessionId},"${qrCodeData.name}",${qrCodeData.chapter},${qrCodeData.plan}\n`;
-
-    fs.appendFileSync(filePath, csvLine);
-    console.log(`[saveQRCodeToCSV] QR code saved for ${qrCodeData.email}`);
-  } catch (error) {
-    console.error(`[saveQRCodeToCSV] Error saving QR code:`, error);
     throw error;
   }
 }
@@ -206,39 +185,6 @@ async function sendQRCodeEmail(registrationData) {
 
     console.log('[sendQRCodeEmail] QR code email sent successfully to:', registrationData.email);
     console.log('[sendQRCodeEmail] Resend API result:', result);
-
-    // Store QR code in Google Sheet
-    try {
-      const qrCodeSheetData = {
-        email: registrationData.email,
-        qrCodeUrl: qrCodeUrl,
-        sentAt: new Date().toISOString(),
-        sessionId: registrationData.sessionId,
-        name: registrationData.name,
-        chapter: registrationData.chapter,
-        plan: registrationData.plan
-      };
-      await writeQRCodeToSheet(qrCodeSheetData);
-      console.log('[sendQRCodeEmail] QR code stored in Google Sheet');
-    } catch (sheetError) {
-      console.error('[sendQRCodeEmail] Failed to store QR code in Google Sheet:', sheetError);
-      // Fallback: Store in local CSV
-      try {
-        saveQRCodeToCSV({
-          email: registrationData.email,
-          qrCodeUrl: qrCodeUrl,
-          sentAt: new Date().toISOString(),
-          sessionId: registrationData.sessionId,
-          name: registrationData.name,
-          chapter: registrationData.chapter,
-          plan: registrationData.plan
-        });
-        console.log('[sendQRCodeEmail] QR code stored in local CSV as fallback');
-      } catch (csvError) {
-        console.error('[sendQRCodeEmail] Failed to store QR code in CSV fallback:', csvError);
-      }
-    }
-
     return { success: true, messageId: result.id };
   } catch (error) {
     console.error('[sendQRCodeEmail] Error sending email:', error);
@@ -855,7 +801,7 @@ app.get('/api/registration/:sessionId', async (req, res) => {
         chapter: foundRegistration.chapter
       });
       foundRegistration.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeData)}&size=300x300`;
-
+      
       return res.json({ success: true, registration: foundRegistration });
     } else {
       return res.status(404).json({ error: 'Registration not found' });
@@ -863,79 +809,6 @@ app.get('/api/registration/:sessionId', async (req, res) => {
   } catch (error) {
     console.error('[api/registration/:sessionId] Error:', error);
     res.status(500).json({ error: 'Failed to retrieve registration details' });
-  }
-});
-
-// Resend QR code by email
-app.post('/api/resend-qr-code', cors(corsOptions), async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ error: 'Valid email is required' });
-    }
-
-    console.log('[resend-qr-code] Resending QR code for email:', email);
-
-    const registrationsFile = path.join(__dirname, 'registrations.csv');
-
-    if (!fs.existsSync(registrationsFile)) {
-      return res.status(404).json({ error: 'Registrations database not found' });
-    }
-
-    const csvContent = fs.readFileSync(registrationsFile, 'utf8');
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',');
-
-    let latestRegistration = null;
-    let latestTimestamp = null;
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line) {
-        const fields = line.split(',').map(field => field.replace(/^"|"$/g, '').trim());
-        const registrationEmail = fields[3]?.toLowerCase().trim();
-        const timestamp = fields[0];
-
-        if (registrationEmail === email.toLowerCase().trim()) {
-          if (!latestTimestamp || timestamp > latestTimestamp) {
-            latestTimestamp = timestamp;
-            latestRegistration = {};
-            headers.forEach((header, index) => {
-              latestRegistration[header.trim()] = fields[index];
-            });
-          }
-        }
-      }
-    }
-
-    if (!latestRegistration) {
-      return res.status(404).json({ error: 'No registration found for this email' });
-    }
-
-    console.log('[resend-qr-code] Found latest registration:', latestRegistration.sessionId);
-
-    // Send QR code email
-    const emailResult = await sendQRCodeEmail(latestRegistration);
-
-    if (emailResult.success) {
-      res.json({
-        success: true,
-        message: 'QR code resent successfully',
-        sessionId: latestRegistration.sessionId
-      });
-    } else {
-      res.status(500).json({
-        error: 'Failed to resend QR code',
-        details: emailResult.error
-      });
-    }
-  } catch (error) {
-    console.error('[resend-qr-code] Error:', error);
-    res.status(500).json({
-      error: 'Failed to resend QR code',
-      details: error.message
-    });
   }
 });
 
