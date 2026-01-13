@@ -41,7 +41,23 @@ function normalizeMemberType(memberType) {
     // console.log(`[normalizeMemberType] Output: 'eo global key executive'`); // Commented out for reduced logging
     return 'eo global key executive';
   }
-  
+  if (normalized.includes('eo jordan')) {
+    // console.log(`[normalizeMemberType] Output: 'eo jordan'`); // Commented out for reduced logging
+    return 'eo jordan';
+  }
+  if (normalized.includes('eo mepa bridge')) {
+    // console.log(`[normalizeMemberType] Output: 'eo mepa bridge'`); // Commented out for reduced logging
+    return 'eo mepa bridge';
+  }
+  if (normalized.includes('eo kuwait')) {
+    // console.log(`[normalizeMemberType] Output: 'eo kuwait'`); // Commented out for reduced logging
+    return 'eo kuwait';
+  }
+  if (normalized.includes('eo pune')) {
+    // console.log(`[normalizeMemberType] Output: 'eo pune'`); // Commented out for reduced logging
+    return 'eo pune';
+  }
+
   // console.log(`[normalizeMemberType] Output: 'guest' (default)`); // Commented out for reduced logging
   return 'guest';
 }
@@ -55,6 +71,10 @@ function getMemberTypeDisplay(normalizedType) {
     'eo dubai next gen': 'EO Dubai Next Gen',
     'eo dubai key executive': 'EO Dubai Key Executive',
     'eo global key executive': 'EO Global Key Executive',
+    'eo jordan': 'EO Jordan',
+    'eo mepa bridge': 'EO MEPA Bridge',
+    'eo kuwait': 'EO Kuwait',
+    'eo pune': 'EO Pune',
     'guest': 'Guest'
   };
   return displayNames[normalizedType] || 'Guest';
@@ -154,6 +174,10 @@ router.all('/verify-user', async (req, res) => {
       'EO Dubai Next Gen': 'As an EO Dubai Next Gen, your entry fee is discounted!',
       'EO Dubai Key Executive': 'As an EO Dubai Key Executive, your entry fee is discounted!',
       'EO Global Key Executive': 'As an EO Global Key Executive, your entry fee is discounted!',
+      'EO Jordan': 'As an EO Jordan member, your entry fee is discounted!',
+      'EO MEPA Bridge': 'As an EO MEPA Bridge member, your entry fee is discounted!',
+      'EO Kuwait': 'As an EO Kuwait member, your entry fee is discounted!',
+      'EO Pune': 'As an EO Pune member, your entry fee is discounted!',
       'Guest': 'Standard pricing applies (no discount)'
     };
     
@@ -177,10 +201,26 @@ router.all('/verify-user', async (req, res) => {
         currency: 'AED'
       },
       'EO Dubai Key Executive': {
-        amount: 3999,
+        amount: 2999,
         currency: 'AED'
       },
       'EO Global Key Executive': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Jordan': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO MEPA Bridge': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Kuwait': {
+        amount: 3999,
+        currency: 'AED'
+      },
+      'EO Pune': {
         amount: 3999,
         currency: 'AED'
       },
@@ -235,6 +275,10 @@ router.get('/member-types', async (req, res) => {
       'EO Dubai Next Gen',
       'EO Dubai Key Executive',
       'EO Global Key Executive',
+      'EO Jordan',
+      'EO MEPA Bridge',
+      'EO Kuwait',
+      'EO Pune',
       'Guest'
     ];
     res.json({
@@ -243,9 +287,9 @@ router.get('/member-types', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in /member-types route:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
-      success: false 
+      success: false
     });
   }
 });
