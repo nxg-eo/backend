@@ -340,6 +340,9 @@ app.post('/api/create-checkout-session', cors(corsOptions), async (req, res) => 
       ivp_authkey: TELR_AUTH_KEY,
       ivp_cart: sessionId,
       ivp_test: '1',
+
+      ivp_test: '1', // Force test mode for testing
+
       ivp_amount: amountInDecimal,
       ivp_currency: currency.toUpperCase(),
       ivp_desc: `AI FOR BUSINESS - ${chapter}`,
