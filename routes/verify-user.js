@@ -33,7 +33,7 @@ function normalizeMemberType(memberType) {
     // console.log(`[normalizeMemberType] Output: 'eo dubai next gen'`); // Commented out for reduced logging
     return 'eo dubai next gen';
   }
-  if (normalized.includes('eo dubai key executive') || normalized.includes('key executive')) {
+  if (normalized.includes('eo dubai key executive')) {
     // console.log(`[normalizeMemberType] Output: 'eo dubai key executive'`); // Commented out for reduced logging
     return 'eo dubai key executive';
   }
